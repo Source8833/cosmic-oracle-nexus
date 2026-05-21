@@ -17,8 +17,9 @@ if (!GEMINI_API_KEY) {
 app.post('/api/oracle', async (req, res) => {
     try {
         const { prompt } = req.body;
-        // USING GEMINI 1.5 PRO INSTEAD OF FLASH
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-latest:generateContent?key=${GEMINI_API_KEY}`, {
+        
+        // USING GEMINI FLASH LATEST
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${GEMINI_API_KEY}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -50,8 +51,7 @@ app.post('/api/oracle', async (req, res) => {
 app.post('/api/voice', async (req, res) => {
     try {
         const { text } = req.body;
-        // USING GEMINI 1.5 PRO INSTEAD OF FLASH
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-latest:generateContent?key=${GEMINI_API_KEY}`, {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${GEMINI_API_KEY}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
