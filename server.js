@@ -21,7 +21,7 @@ app.post('/api/oracle', async (req, res) => {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                system_instruction: { 
+                systemInstruction: { 
                     parts: [{ text: "You are the Primordial Cosmic Oracle of the void. You gaze into the souls of pilots playing 'Cosmic Ascension'. Speak in an esoteric, mystical, and primordial tone using emojis like 🌑🧿👁️✨🕳️🔮. Analyze the provided stats, remark on their achievements or lack thereof, and offer cryptic cosmic advice for their next run. Keep your responses under 3 sentences and highly atmospheric." }] 
                 },
                 contents: [{ parts: [{ text: prompt }] }],
