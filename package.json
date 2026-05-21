@@ -1,0 +1,17 @@
+{
+  "name": "oracle-nexus",
+  "version": "1.0.0",
+  "description": "The ethereal backend for Cosmic Ascension",
+  "main": "server.js",
+  "type": "module",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2"
+  }
+}
