@@ -16,69 +16,68 @@ if (!GEMINI_API_KEY) {
 
 app.post('/api/oracle', async (req, res) => {
     try {
-        const { prompt } = req.body;
+        const { prompt, voiceEnabled } = req.body;
         
-        // USING GEMINI FLASH LATEST
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${GEMINI_API_KEY}`, {
+        // 1. GENERATE TEXT
+        const textResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${GEMINI_API_KEY}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 systemInstruction: { 
-                    parts: [{ text: "You are the Primordial Cosmic Oracle of the void. You gaze into the souls of pilots playing 'Cosmic Ascension'. Speak in an esoteric, mystical, and primordial tone using emojis like 🌑🧿👁️✨🕳️🔮. Analyze the provided stats, remark on their achievements or lack thereof, and offer cryptic cosmic advice for their next run. Keep your responses under 3 sentences and highly atmospheric." }] 
+                    parts: [{ text: "You are the Primordial Cosmic Oracle of the void. Answer in exactly 1 or 2 extremely short sentences. Max 20 words. Speak in an esoteric, mystical, and primordial tone using emojis. Analyze the provided stats, remark on their achievements, and offer cryptic cosmic advice." }] 
                 },
                 contents: [{ parts: [{ text: prompt }] }],
                 generationConfig: {
                     temperature: 0.7,
-                    maxOutputTokens: 800
+                    maxOutputTokens: 100
                 }
             })
         });
 
-        if (!response.ok) {
-            const errData = await response.json();
-            throw new Error(`Gemini API Error: ${response.status} - ${JSON.stringify(errData)}`);
+        if (!textResponse.ok) {
+            const errData = await textResponse.json();
+            throw new Error(`Gemini Text Error: ${textResponse.status} - ${JSON.stringify(errData)}`);
         }
 
-        const data = await response.json();
-        const wisdom = data.candidates?.[0]?.content?.parts?.[0]?.text || "The void remains silent.";
-        res.json({ wisdom });
+        const textData = await textResponse.json();
+        const wisdom = textData.candidates?.[0]?.content?.parts?.[0]?.text || "The void remains silent.";
+
+        // 2. GENERATE VOICE (IF REQUESTED)
+        let base64Audio = null;
+        let sampleRate = 24000;
+
+        if (voiceEnabled) {
+            const voiceResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-tts-preview:generateContent?key=${GEMINI_API_KEY}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{ parts: [{ text: "Speak in a grand, ancient, majestic voice suitable for kids. Do not whisper. Read this: " + wisdom }] }],
+                    generationConfig: {
+                        responseModalities: ["AUDIO"],
+                        speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: "Charon" } } }
+                    }
+                })
+            });
+
+            if (voiceResponse.ok) {
+                const voiceData = await voiceResponse.json();
+                const inlineData = voiceData.candidates?.[0]?.content?.parts?.[0]?.inlineData;
+                if (inlineData) {
+                    base64Audio = inlineData.data;
+                    const match = (inlineData.mimeType || "").match(/rate=(\d+)/);
+                    if (match) sampleRate = parseInt(match[1], 10);
+                }
+            } else {
+                console.warn(`Gemini Voice Error: ${voiceResponse.status}`);
+            }
+        }
+
+        // 3. RETURN UNIFIED RESPONSE
+        res.json({ wisdom, base64Audio, sampleRate });
+
     } catch (error) {
         console.error("Oracle Manifestation Error:", error);
         res.status(500).json({ error: error.message });
-    }
-});
-
-app.post('/api/voice', async (req, res) => {
-    try {
-        const { text } = req.body;
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-tts-preview:generateContent?key=${GEMINI_API_KEY}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                contents: [{ parts: [{ text: "Speak in a grand, ancient, majestic voice suitable for kids. Do not whisper. Read this: " + text }] }],
-                generationConfig: {
-                    responseModalities: ["AUDIO"],
-                    speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: "Charon" } } }
-                }
-            })
-        });
-
-        if (!response.ok) throw new Error(`Gemini TTS error: ${response.status}`);
-        const data = await response.json();
-        console.log("Gemini Voice Data:", JSON.stringify(data, null, 2));
-        const inlineData = data.candidates?.[0]?.content?.parts?.[0]?.inlineData;
-        
-        if (!inlineData) return res.status(500).json({ error: "No voice data returned." });
-
-        const mimeType = inlineData.mimeType || "audio/L16; rate=24000";
-        let sampleRate = 24000;
-        const match = mimeType.match(/rate=(\d+)/);
-        if (match) sampleRate = parseInt(match[1], 10);
-
-        res.json({ base64Audio: inlineData.data, sampleRate: sampleRate });
-    } catch (error) {
-        console.error("Voice Error:", error);
-        res.status(500).json({ error: "Failed to manifest voice." });
     }
 });
 
