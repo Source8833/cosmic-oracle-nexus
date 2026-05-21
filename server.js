@@ -81,6 +81,16 @@ app.post('/api/voice', async (req, res) => {
     }
 });
 
+app.get('/api/models', async (req, res) => {
+    try {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${GEMINI_API_KEY}`);
+        const data = await response.json();
+        res.json(data);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 app.listen(PORT, () => {
     console.log(`👁️ The Oracle Nexus is active on port ${PORT}`);
 });
