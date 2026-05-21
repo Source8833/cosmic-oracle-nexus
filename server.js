@@ -29,7 +29,7 @@ app.post('/api/oracle', async (req, res) => {
                 contents: [{ parts: [{ text: prompt }] }],
                 generationConfig: {
                     temperature: 0.7,
-                    maxOutputTokens: 200
+                    maxOutputTokens: 800
                 }
             })
         });
@@ -51,7 +51,7 @@ app.post('/api/oracle', async (req, res) => {
 app.post('/api/voice', async (req, res) => {
     try {
         const { text } = req.body;
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${GEMINI_API_KEY}`, {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-tts-preview:generateContent?key=${GEMINI_API_KEY}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -65,6 +65,7 @@ app.post('/api/voice', async (req, res) => {
 
         if (!response.ok) throw new Error(`Gemini TTS error: ${response.status}`);
         const data = await response.json();
+        console.log("Gemini Voice Data:", JSON.stringify(data, null, 2));
         const inlineData = data.candidates?.[0]?.content?.parts?.[0]?.inlineData;
         
         if (!inlineData) return res.status(500).json({ error: "No voice data returned." });
