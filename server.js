@@ -16,35 +16,45 @@ if (!GEMINI_API_KEY) {
     console.warn("⚠️ WARNING: No GEMINI_API_KEY provided. The Oracle is blind.");
 }
 
+// --- UPDATED API ENDPOINTS ---
+
+// Oracle Wisdom Route
 app.post('/api/oracle', async (req, res) => {
     try {
         const { prompt } = req.body;
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${GEMINI_API_KEY}`, {
+        // Corrected stable API endpoint
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 contents: [{ parts: [{ text: prompt }] }],
-                systemInstruction: { 
-                    parts: [{ 
-                        text: "You are the Primordial Cosmic Oracle of the void. You gaze into the souls of pilots playing 'Cosmic Ascension'. Speak in an esoteric, mystical, and primordial tone using emojis like 🌑🧿👁️✨🕳️🔮. Analyze the provided stats, remark on their achievements or lack thereof, and offer cryptic cosmic advice for their next run. Keep your responses under 3 sentences and highly atmospheric." 
-                    }] 
+                // Note: systemInstruction is now passed within the configuration object for newer models
+                generationConfig: {
+                    "systemInstruction": "You are the Primordial Cosmic Oracle of the void. You gaze into the souls of pilots playing 'Cosmic Ascension'. Speak in an esoteric, mystical, and primordial tone using emojis like 🌑🧿👁️✨🕳️🔮. Analyze the provided stats, remark on their achievements or lack thereof, and offer cryptic cosmic advice for their next run. Keep your responses under 3 sentences and highly atmospheric."
                 }
             })
         });
 
-        if (!response.ok) throw new Error(`Gemini API error: ${response.status}`);
+        if (!response.ok) {
+            const errData = await response.json();
+            throw new Error(`Gemini API Error: ${response.status} - ${JSON.stringify(errData)}`);
+        }
+
         const data = await response.json();
-        res.json({ wisdom: data.candidates?.[0]?.content?.parts?.[0]?.text || "The void remains silent." });
+        const wisdom = data.candidates?.[0]?.content?.parts?.[0]?.text || "The void remains silent.";
+        res.json({ wisdom });
     } catch (error) {
         console.error("Oracle Error:", error);
-        res.status(500).json({ error: "Failed to commune with the void." });
+        res.status(500).json({ error: error.message });
     }
 });
 
+// Voice Manifestation Route
 app.post('/api/voice', async (req, res) => {
     try {
         const { text } = req.body;
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${GEMINI_API_KEY}`, {
+        // Corrected stable API endpoint for TTS
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -52,8 +62,7 @@ app.post('/api/voice', async (req, res) => {
                 generationConfig: {
                     responseModalities: ["AUDIO"],
                     speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: "Charon" } } }
-                },
-                model: "gemini-2.5-flash-preview-tts"
+                }
             })
         });
 
