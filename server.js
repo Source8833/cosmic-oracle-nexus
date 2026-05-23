@@ -18,11 +18,11 @@ app.post('/api/oracle', async (req, res) => {
     try {
         const { prompt, voiceEnabled, isChronicle } = req.body;
         
-        let sysInstruction = "You are the Primordial Cosmic Oracle of the void. Answer in exactly 1 or 2 extremely short sentences. Max 20 words. Speak in an esoteric, mystical, and primordial tone using emojis. Analyze the provided stats, remark on their achievements, and offer cryptic cosmic advice.";
+        let sysInstruction = "You are the Primordial Cosmic Oracle of the void. Answer in 2 or 3 short sentences. Keep your thoughts brief but always complete your sentences fully. Speak in an esoteric, mystical, and primordial tone using emojis. Analyze the provided stats, remark on their achievements, and offer cryptic cosmic advice. CRITICAL: Output ONLY the spoken response. Do not include any word counts, thinking process, or meta-commentary.";
         let maxTokens = 1000;
 
         if (isChronicle) {
-            sysInstruction = "You are the Cosmic Oracle recording history in the celestial ledger. Chronicle the pilot's latest journey. Detail their performance, reference their total lifetime achievements, and deliver a dramatic, esoteric, and mystical obituary of their run. You are permitted to use up to 4 sentences and 80 words. Use cosmic emojis.";
+            sysInstruction = "You are the Cosmic Oracle recording history in the celestial ledger. Chronicle the pilot's latest journey. Detail their performance, reference their total lifetime achievements, and deliver a dramatic, esoteric, and mystical obituary of their run. Keep it to about 3 or 4 sentences. Use cosmic emojis. CRITICAL: Output ONLY the spoken response. Do not include any word counts, thinking process, or meta-commentary.";
             maxTokens = 2048;
         }
 
@@ -61,7 +61,6 @@ app.post('/api/oracle', async (req, res) => {
                 body: JSON.stringify({
                     contents: [{ parts: [{ text: "Speak in a grand, ancient, majestic voice suitable for kids. Do not whisper. Read this: " + wisdom }] }],
                     generationConfig: {
-                        maxOutputTokens: 2048,
                         responseModalities: ["AUDIO"],
                         speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: "Charon" } } }
                     }
@@ -69,12 +68,18 @@ app.post('/api/oracle', async (req, res) => {
             });
 
             if (voiceResponse.ok) {
-                const voiceData = await voiceResponse.json();
-                const inlineData = voiceData.candidates?.[0]?.content?.parts?.[0]?.inlineData;
-                if (inlineData) {
-                    base64Audio = inlineData.data;
-                    const match = (inlineData.mimeType || "").match(/rate=(\d+)/);
-                    if (match) sampleRate = parseInt(match[1], 10);
+                const voiceRawText = await voiceResponse.text();
+                try {
+                    const voiceData = JSON.parse(voiceRawText);
+                    const inlineData = voiceData.candidates?.[0]?.content?.parts?.[0]?.inlineData;
+                    if (inlineData) {
+                        base64Audio = inlineData.data;
+                        const match = (inlineData.mimeType || "").match(/rate=(\d+)/);
+                        if (match) sampleRate = parseInt(match[1], 10);
+                    }
+                } catch (parseError) {
+                    console.warn(`Gemini Voice JSON Error: ${parseError.message} - Response text: ${voiceRawText.substring(0, 100)}`);
+                    wisdom += ` [Voice Generation Failed: Invalid JSON response from API]`;
                 }
             } else {
                 const errorData = await voiceResponse.text();
