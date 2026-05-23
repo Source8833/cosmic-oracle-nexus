@@ -116,6 +116,10 @@
             
             <div class="space-y-4 w-full px-4">
                 <button id="titleLaunchBtn" class="btn-cosmic w-full py-5 rounded-xl font-bold text-xl tracking-[0.2em] uppercase shadow-[0_0_20px_rgba(59,130,246,0.6)]">SINGLE PLAYER</button>
+                <button id="titleDailyRiftBtn" class="w-full py-4 rounded-lg font-bold tracking-[0.15em] text-sm border border-emerald-500/50 bg-emerald-900/40 text-emerald-300 hover:bg-emerald-800/60 transition-all uppercase flex items-center justify-center gap-3 shadow-[0_0_15px_rgba(16,185,129,0.3)]">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                    DAILY RIFT
+                </button>
                 <button id="titleMultiplayerBtn" class="btn-cosmic w-full py-4 rounded-lg font-bold tracking-[0.15em] text-sm border border-blue-500/50 bg-blue-900/40 text-blue-300 uppercase flex items-center justify-center gap-3 shadow-[0_0_15px_rgba(59,130,246,0.3)]">
                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
                     COSMIC RIFTS <span class="text-[10px] text-blue-400 tracking-widest">(MULTIPLAYER)</span>
@@ -439,6 +443,29 @@
         </div>
     </div>
 
+    <!-- Dark Matter Lab Overlay -->
+    <div id="labOverlay" class="absolute inset-0 bg-black/95 backdrop-blur-xl hidden items-center justify-center interactive z-[190]">
+        <div class="glass-panel p-6 max-w-md w-full h-[85vh] flex flex-col relative overflow-hidden shadow-[0_0_50px_rgba(217,70,239,0.3)] border border-fuchsia-500/30">
+            <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-fuchsia-400 via-purple-500 to-fuchsia-600"></div>
+            
+            <div class="flex justify-between items-center mb-4 shrink-0">
+                <h2 class="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-fuchsia-300 to-purple-500 tracking-[0.2em] uppercase">Dark Matter Lab</h2>
+                <div class="flex items-center gap-2 bg-black/50 px-3 py-1.5 rounded-full border border-fuchsia-500/20">
+                    <span class="text-fuchsia-400 font-bold" id="labDarkMatterDisplay">0</span>
+                    <span class="text-[10px] text-fuchsia-200 uppercase tracking-widest">DM</span>
+                </div>
+            </div>
+
+            <p class="text-xs text-fuchsia-200/70 mb-4 tracking-wide leading-relaxed shrink-0">Research permanent upgrades that persist through Cosmic Collapses. The void yields to knowledge.</p>
+
+            <div id="labContent" class="flex-1 overflow-y-auto space-y-4 pr-2 custom-scrollbar">
+                <!-- Upgrades injected here -->
+            </div>
+
+            <button id="closeLabBtn" class="w-full py-4 mt-4 rounded-lg font-bold text-sm tracking-[0.2em] uppercase border border-fuchsia-500/30 bg-fuchsia-900/20 text-fuchsia-300 hover:bg-fuchsia-800/40 transition-colors shrink-0">Return to Hub</button>
+        </div>
+    </div>
+
     <!-- Leaderboards Overlay -->
     <div id="leaderboardOverlay" class="absolute inset-0 bg-black/80 backdrop-blur-md hidden items-center justify-center interactive z-[110]">
         <div class="glass-panel p-6 max-w-[30rem] w-full text-center flex flex-col relative overflow-hidden h-[80vh]">
@@ -668,6 +695,15 @@
                         </div>
                     </div>
                 </div>
+
+                <div class="mt-4 p-4 rounded-xl border border-emerald-500/30 bg-emerald-900/20 text-left">
+                    <h3 class="text-emerald-400 font-bold uppercase tracking-widest text-[10px] mb-3 flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                        Daily Rift Objectives
+                    </h3>
+                    <div id="dailyObjectivesList" class="space-y-2 text-xs">
+                    </div>
+                </div>
                 
                 <div id="statsBox" class="bg-white/5 rounded-xl p-5 mb-6 border border-white/5">
                     <div class="grid grid-cols-2 gap-4">
@@ -685,6 +721,15 @@
                 <!-- Chronicle Section -->
                 <button id="chronicleBtn" class="w-full py-3 mb-4 rounded-lg font-bold text-xs tracking-[0.2em] uppercase border border-fuchsia-500/50 bg-fuchsia-900/20 text-fuchsia-300 shadow-[0_0_10px_rgba(217,70,239,0.2)] transition-all flex items-center justify-center gap-2 hover:bg-fuchsia-800/40 hidden">✨ Chronicle this Run</button>
                 <div id="chronicleText" class="text-xs text-fuchsia-200 italic hidden mb-4 bg-black/40 p-4 rounded-xl border border-fuchsia-900/50 text-left leading-relaxed shadow-inner"></div>
+
+                <div class="flex gap-2 mb-4">
+                    <button id="openLabBtn" class="flex-1 py-3 rounded-lg font-bold text-xs tracking-[0.1em] uppercase border border-fuchsia-500/50 bg-fuchsia-900/20 text-fuchsia-300 shadow-[0_0_10px_rgba(217,70,239,0.2)] transition-all flex items-center justify-center gap-2 hover:bg-fuchsia-800/40" style="display: none;">
+                        DARK MATTER LAB
+                    </button>
+                    <button id="cosmicCollapseBtn" class="flex-1 py-3 rounded-lg font-bold text-xs tracking-[0.1em] uppercase border border-fuchsia-600 bg-black/60 text-fuchsia-400 shadow-[0_0_20px_rgba(217,70,239,0.5)] transition-all flex items-center justify-center gap-2 hover:bg-fuchsia-900/40" style="display: none;">
+                        COLLAPSE
+                    </button>
+                </div>
 
                 <div class="space-y-4 mb-8">
                     <div>
@@ -2756,6 +2801,23 @@ window.addEventListener('unhandledrejection', function(e) {
         let playerLevel = parseInt(localStorage.getItem('cosmic_level_rank') || '1');
 
         // ==========================================
+        //  PRESTIGE & DAILY SYSTEMS (COSMIC COLLAPSE)
+        // ==========================================
+        let darkMatter = parseInt(localStorage.getItem('cosmic_dark_matter') || '0');
+        let prestigeCount = parseInt(localStorage.getItem('cosmic_prestige_count') || '0');
+        let dailyRiftLastPlayed = localStorage.getItem('cosmic_daily_rift_last') || '';
+        let dailyObjectives = JSON.parse(localStorage.getItem('cosmic_daily_objectives')) || [
+            { type: 'survive_leviathan', desc: 'Survive the Leviathan chase for 15s', target: 15, progress: 0, completed: false, rewardXp: 50000, rewardMoney: 5000 },
+            { type: 'supernova_shards', desc: 'Collect 100 shards during Supernova', target: 100, progress: 0, completed: false, rewardXp: 25000, rewardMoney: 2500 },
+            { type: 'reach_altitude', desc: 'Reach 25,000 altitude in the Daily Rift', target: 25000, progress: 0, completed: false, rewardXp: 75000, rewardMoney: 10000 }
+        ];
+        let darkMatterUpgrades = JSON.parse(localStorage.getItem('cosmic_dark_matter_upgrades')) || {
+            leviathanSlayer: 0, // Slows leviathan
+            supernovaGreed: 0,  // More shards during supernova
+            astralShield: 0     // Start with extra shield on prestige
+        };
+
+        // ==========================================
         //  ORACLE & GEMINI API INTEGRATION ✨
         // ==========================================
 
@@ -3515,12 +3577,129 @@ window.addEventListener('unhandledrejection', function(e) {
         document.body.style.backgroundColor = '#000000'; // Initial Title Screen
 
         // Overlays Logic
+        function renderLab() {
+            const container = document.getElementById('labContent');
+            if (!container) return;
+            container.innerHTML = '';
+            document.getElementById('labDarkMatterDisplay').innerText = darkMatter;
+            
+            const labUpgrades = [
+                { id: 'leviathanSlayer', name: 'Leviathan Slayer', desc: 'Slows the Void Leviathan. Max Lv 5.', max: 5, baseCost: 1, mult: 2 },
+                { id: 'supernovaGreed', name: 'Supernova Greed', desc: 'Double shard value during Supernova. Max Lv 5.', max: 5, baseCost: 1, mult: 2 },
+                { id: 'coinMultDM', name: 'Dark Wealth', desc: 'Increases all coin values globally by 50% per level. Max Lv 10.', max: 10, baseCost: 2, mult: 1.5 }
+            ];
+            
+            labUpgrades.forEach(u => {
+                const currentLv = darkMatterUpgrades[u.id] || 0;
+                const cost = Math.floor(u.baseCost * Math.pow(u.mult, currentLv));
+                const isMax = currentLv >= u.max;
+                const canAfford = darkMatter >= cost && !isMax;
+                
+                container.innerHTML += `
+                    <div class="bg-black/40 rounded-lg p-3 border border-fuchsia-500/20 relative overflow-hidden group hover:border-fuchsia-500/40 transition-colors">
+                        <div class="flex justify-between items-start mb-1 relative z-10">
+                            <div>
+                                <h4 class="font-bold text-fuchsia-300 text-sm tracking-widest uppercase">${u.name}</h4>
+                                <p class="text-[10px] text-fuchsia-200/50 mt-1 uppercase tracking-widest">LEVEL ${currentLv}/${u.max}</p>
+                            </div>
+                            ${isMax ? 
+                                `<span class="text-xs font-bold text-gray-500 tracking-widest uppercase">MAXED</span>` : 
+                                `<button class="btn-shop px-3 py-1.5 rounded font-bold text-xs border border-fuchsia-500/50 bg-fuchsia-900/40 text-fuchsia-300 disabled:opacity-50" ${!canAfford ? 'disabled' : ''} data-id="${u.id}" data-cost="${cost}">
+                                    ${cost} DM
+                                </button>`
+                            }
+                        </div>
+                        <p class="text-xs text-gray-400 mt-2 relative z-10">${u.desc}</p>
+                    </div>
+                `;
+            });
+            
+            container.querySelectorAll('button').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const id = e.target.getAttribute('data-id');
+                    const cost = parseInt(e.target.getAttribute('data-cost'));
+                    if (darkMatter >= cost) {
+                        darkMatter -= cost;
+                        darkMatterUpgrades[id] = (darkMatterUpgrades[id] || 0) + 1;
+                        saveProgress();
+                        renderLab();
+                        SFX.coin();
+                    }
+                });
+            });
+        }
+        
+        document.getElementById('closeLabBtn')?.addEventListener('click', () => {
+            document.getElementById('labOverlay').classList.add('hidden');
+            document.getElementById('labOverlay').classList.remove('flex');
+            menuOverlay.classList.remove('hidden');
+            updateXpUI();
+        });
+
+        document.getElementById('openLabBtn')?.addEventListener('click', () => {
+            renderLab();
+            menuOverlay.classList.add('hidden');
+            document.getElementById('labOverlay').classList.remove('hidden');
+            document.getElementById('labOverlay').classList.add('flex');
+        });
+
+        document.getElementById('cosmicCollapseBtn')?.addEventListener('click', () => {
+            let pendingDM = Math.floor(playerHighScore / 5000);
+            if (confirm(`Initiating Cosmic Collapse will reset your Money, Level, Upgrades, and Highest Altitude, but you will gain ${pendingDM} Dark Matter.\n\nDark Matter can be used for permanent research.\n\nProceed?`)) {
+                darkMatter += pendingDM;
+                prestigeCount++;
+                
+                money = 0; lifetimeMoney = 0; runMoney = 0;
+                playerLevel = 1; playerXP = 0; runXpGained = 0;
+                playerHighScore = 0; score = 0;
+                upgradeLevels = {};
+                
+                saveProgress();
+                updateXpUI();
+                renderLab();
+                
+                menuOverlay.classList.add('hidden');
+                document.getElementById('labOverlay').classList.remove('hidden');
+                document.getElementById('labOverlay').classList.add('flex');
+            }
+        });
+
         titleLaunchBtn.addEventListener('click', () => {
             requestSystemFullscreen(); initAudio(); gameState = 'HUB'; 
             menuTitle.innerHTML = "COSMIC<br>ASCENSION"; 
             menuTitle.className = "text-4xl md:text-5xl font-bold text-white mb-1 tracking-tight mt-4";
             menuSubtitle.innerText = "System Diagnostics Optimal";
+            updateDailyObjectivesUI();
             titleOverlay.classList.add('hidden'); menuOverlay.classList.remove('hidden'); document.body.style.backgroundColor = LEVELS[activeLevelIndex].bg;
+        });
+
+        document.getElementById('titleDailyRiftBtn').addEventListener('click', () => {
+            requestSystemFullscreen(); initAudio();
+            
+            const today = new Date().toDateString();
+            if (dailyRiftLastPlayed === today) {
+                alert("The Daily Rift is unstable. Return tomorrow for new objectives and seeds.");
+                return;
+            }
+            if (dailyRiftLastPlayed !== today) {
+                dailyObjectives.forEach(o => { o.progress = 0; o.completed = false; });
+                dailyRiftLastPlayed = today;
+                saveProgress();
+                updateDailyObjectivesUI();
+            }
+            
+            activeRiftId = 'daily_rift_' + today.replace(/ /g, '_');
+            activeRiftMapIndex = 0;
+            
+            let seed = today.split('').reduce((a, b) => a + b.charCodeAt(0), 0);
+            R = function() {
+                var t = seed += 0x6D2B79F5;
+                t = Math.imul(t ^ t >>> 15, t | 1);
+                t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+                return ((t ^ t >>> 14) >>> 0) / 4294967296;
+            };
+            
+            resetGame();
         });
 
         titleSettingsBtn.addEventListener('click', () => { 
@@ -3609,6 +3788,24 @@ window.addEventListener('unhandledrejection', function(e) {
             const needed = nextLevelReq - prevLevelReq;
             hubXpDisplay.innerText = `${progress} / ${needed} XP`;
             hubXpBar.style.width = `${Math.min(100, (progress / needed) * 100)}%`;
+
+            let pendingDM = Math.floor(playerHighScore / 5000);
+            const cosmicBtn = document.getElementById('cosmicCollapseBtn');
+            const openLabBtn = document.getElementById('openLabBtn');
+            if (cosmicBtn && openLabBtn) {
+                if (pendingDM > 0 || prestigeCount > 0) {
+                    cosmicBtn.style.display = 'flex';
+                    cosmicBtn.innerHTML = `COLLAPSE (+${pendingDM} DM)`;
+                } else {
+                    cosmicBtn.style.display = 'none';
+                }
+                
+                if (prestigeCount > 0 || darkMatter > 0) {
+                    openLabBtn.style.display = 'flex';
+                } else {
+                    openLabBtn.style.display = 'none';
+                }
+            }
         }
         
         function saveProgress() {
@@ -3617,8 +3814,8 @@ window.addEventListener('unhandledrejection', function(e) {
             localStorage.setItem('cosmic_map_high_scores', JSON.stringify(mapHighScores));
             localStorage.setItem('cosmic_upgrades', JSON.stringify(upgradeLevels));
             localStorage.setItem('cosmic_unlocked_skins', JSON.stringify(unlockedSkins));
-    localStorage.setItem('cosmic_unlocked_thrusters', JSON.stringify(unlockedThrusters));
-    localStorage.setItem('cosmic_active_thruster', activeThruster);
+            localStorage.setItem('cosmic_unlocked_thrusters', JSON.stringify(unlockedThrusters));
+            localStorage.setItem('cosmic_active_thruster', activeThruster);
             localStorage.setItem('cosmic_name', playerNameInput.value);
             localStorage.setItem('cosmic_level', activeLevelIndex);
             localStorage.setItem('cosmic_skin', activeSkinId);
@@ -3634,6 +3831,13 @@ window.addEventListener('unhandledrejection', function(e) {
             localStorage.setItem('cosmic_total_runs', totalRuns);
             localStorage.setItem('cosmic_last_run_score', lastRunScore);
             localStorage.setItem('cosmic_last_played', Date.now());
+
+            // Cosmic Collapse saves
+            localStorage.setItem('cosmic_dark_matter', darkMatter);
+            localStorage.setItem('cosmic_prestige_count', prestigeCount);
+            localStorage.setItem('cosmic_daily_rift_last', dailyRiftLastPlayed);
+            localStorage.setItem('cosmic_daily_objectives', JSON.stringify(dailyObjectives));
+            localStorage.setItem('cosmic_dark_matter_upgrades', JSON.stringify(darkMatterUpgrades));
 
             moneyDisplay.innerText = money;
             shopMoneyDisplay.innerText = money;
@@ -4638,6 +4842,24 @@ window.addEventListener('unhandledrejection', function(e) {
         skinLabel.innerText = getActiveSkin().name;
         updateXpUI();
 
+        function updateDailyObjectivesUI() {
+            const container = document.getElementById('dailyObjectivesList');
+            if (!container) return;
+            container.innerHTML = '';
+            dailyObjectives.forEach(obj => {
+                const pct = Math.min(100, (obj.progress / obj.target) * 100);
+                container.innerHTML += `
+                    <div class="bg-black/40 rounded p-2 border ${obj.completed ? 'border-emerald-500/50' : 'border-white/5'} relative overflow-hidden">
+                        <div class="absolute left-0 top-0 bottom-0 bg-emerald-500/20" style="width: ${pct}%"></div>
+                        <div class="relative z-10 flex justify-between items-center">
+                            <span class="${obj.completed ? 'text-emerald-300' : 'text-gray-300'}">${obj.desc}</span>
+                            <span class="font-mono text-[10px] ${obj.completed ? 'text-emerald-400' : 'text-gray-500'}">${Math.floor(obj.progress)}/${obj.target}</span>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
         function showNotification(msg, isError = false, customColor = null) {
             const el = document.createElement('div');
             let colorClass = isError ? 'bg-red-900/80 text-red-100 border border-red-500' : 'bg-green-900/80 text-green-100 border border-green-500';
@@ -4756,6 +4978,11 @@ window.addEventListener('unhandledrejection', function(e) {
             wormholes = wormholes.filter(w => w.y < cameraY + height + 200 && w.active);
         }
 
+        let currentCelestialEvent = null; 
+        let celestialEventTimer = 0;
+        let leviathanY = 0; 
+        let supernovaGravityMod = 1.0;
+
         function resetGame() {
             if (!activeRiftId) R = Math.random; // Ensure standard randomness outside of rifts
             initAudio(); saveProgress(); 
@@ -4764,6 +4991,9 @@ window.addEventListener('unhandledrejection', function(e) {
             player.isBoosting = false; player.dashCharge = DASH_MAX_CHARGE; player.shield = upgradeLevels.shield || 0;
             cameraY = 0; score = 0; highestY = player.y; highestPlatformY = height;
             platforms = []; stars = []; coins = []; megaStars = []; wormholes = []; particles = [];
+            currentCelestialEvent = null;
+            supernovaGravityMod = 1.0;
+            leviathanY = 0;
             
             platforms.push({ x: 0, y: height - 20, width: width, height: 20, isBouncy: false });
             generatePlatforms(cameraY - height);
@@ -4809,6 +5039,57 @@ window.addEventListener('unhandledrejection', function(e) {
             if (gameState === 'PLAYING' && runStartTime > 0 && Math.random() < 0.01) { lifetimeTimePlayed += (Date.now() - runStartTime); runStartTime = Date.now(); } // periodically commit time
             if (gameState !== 'PLAYING') return;
 
+            // --- DYNAMIC CELESTIAL EVENTS ENGINE ---
+            if (currentCelestialEvent === null && score > 1000 && Math.random() < 0.0005) {
+                if (Math.random() < 0.5) {
+                    currentCelestialEvent = 'leviathan';
+                    celestialEventTimer = 1500; // ~25s at 60fps
+                    leviathanY = player.y + 1200; // Starts below
+                    showNotification('WARNING: VOID LEVIATHAN APPROACHING!', false, '#9333ea');
+                } else {
+                    currentCelestialEvent = 'supernova';
+                    celestialEventTimer = 1200; // ~20s
+                    supernovaGravityMod = 0.5; // Halved gravity
+                    showNotification('WARNING: SUPERNOVA GRAVITY SHIFT!', false, '#f59e0b');
+                }
+            }
+
+            if (currentCelestialEvent !== null) {
+                celestialEventTimer--;
+                if (currentCelestialEvent === 'leviathan') {
+                    let speed = 5.5 - ((darkMatterUpgrades.leviathanSlayer || 0) * 0.5);
+                    if (speed < 2.0) speed = 2.0;
+                    leviathanY -= speed; // Moves up (negative Y)
+                    if (leviathanY > cameraY + height + 800) leviathanY = cameraY + height + 800;
+
+                    if (activeRiftId && activeRiftId.startsWith('daily_rift')) {
+                        let obj = dailyObjectives.find(o => o.type === 'survive_leviathan');
+                        if (obj && !obj.completed) {
+                            obj.progress += 1/60; 
+                            if (obj.progress >= obj.target) {
+                                obj.progress = obj.target; obj.completed = true;
+                                playerXP += obj.rewardXp; money += obj.rewardMoney;
+                                showNotification('DAILY OBJECTIVE COMPLETE!', false, '#10b981'); SFX.coin(); saveProgress(); updateDailyObjectivesUI();
+                            }
+                        }
+                    }
+                    
+                    if (player.y >= leviathanY) {
+                        if (activeCheats.godMode || activeCheats.noclip) {
+                            player.vy = -30; SFX.jumpBouncy();
+                        } else {
+                            gameOver(); // Consumed by Leviathan
+                        }
+                    }
+                }
+                
+                if (celestialEventTimer <= 0) {
+                    currentCelestialEvent = null;
+                    supernovaGravityMod = 1.0;
+                    showNotification('EVENT CONCLUDED', false, '#10b981');
+                }
+            }
+
             // Super Boost cooldown UI
             const timeSinceSb = Date.now() - lastSuperBoostTime;
             const sbBar = document.getElementById('superBoostCooldown');
@@ -4827,7 +5108,7 @@ window.addEventListener('unhandledrejection', function(e) {
 
             const passiveLift = (upgradeLevels.thrusters || 0) * -0.5;
             const res = (upgradeLevels.gravity || 0) * 0.1;
-            const appliedGravity = (activeCheats.zeroGravity ? 0.05 : GRAVITY) * (1 - res);
+            const appliedGravity = (activeCheats.zeroGravity ? 0.05 : GRAVITY) * (1 - res) * supernovaGravityMod;
             player.vy += appliedGravity + passiveLift;
             const maxF = MAX_FALL_SPEED + (upgradeLevels.maxSpeed || 0) * 2;
             if (player.vy > maxF) player.vy = maxF;
@@ -4860,7 +5141,8 @@ window.addEventListener('unhandledrejection', function(e) {
             if (player.vy > 0 && !player.isBoosting) {
                 for (let p of platforms) {
                     if (player.x + player.radius > p.x - 5 && player.x - player.radius < p.x + p.width + 5 && player.y + player.radius >= p.y && player.y + player.radius <= p.y + 20 + player.vy) { 
-                        player.y = p.y - player.radius; player.vy = p.isBouncy ? JUMP_FORCE * 1.5 : JUMP_FORCE;
+                        let currentJumpForce = (currentCelestialEvent === 'supernova') ? JUMP_FORCE * 1.5 : JUMP_FORCE;
+                        player.y = p.y - player.radius; player.vy = p.isBouncy ? currentJumpForce * 1.5 : currentJumpForce;
                         p.isBouncy ? SFX.jumpBouncy() : SFX.jump(); createExplosion(player.x, p.y, LEVELS[activeLevelIndex].platform, 5); break;
                     }
                 }
@@ -4875,7 +5157,7 @@ window.addEventListener('unhandledrejection', function(e) {
                 });
             }
 
-            for (let c of coins) { if (!c.collected && Math.hypot(player.x - c.x, player.y - c.y) < player.radius + c.radius) { let cVal = 1 + (upgradeLevels.coinMult || 0); c.collected = true; money += cVal; runMoney += cVal; lifetimeMoney += 1; moneyDisplay.innerText = money; SFX.coin(); createExplosion(c.x, c.y, '#fef08a', 5); } }
+            for (let c of coins) { if (!c.collected && Math.hypot(player.x - c.x, player.y - c.y) < player.radius + c.radius) { let greedBonus = (currentCelestialEvent === 'supernova') ? (darkMatterUpgrades.supernovaGreed || 0) * 2 : 0; let dmMult = 1 + ((darkMatterUpgrades.coinMultDM || 0) * 0.5); let cVal = Math.floor((1 + (upgradeLevels.coinMult || 0) + greedBonus) * dmMult); c.collected = true; money += cVal; runMoney += cVal; lifetimeMoney += 1; moneyDisplay.innerText = money; SFX.coin(); createExplosion(c.x, c.y, '#fef08a', 5); if (currentCelestialEvent === 'supernova' && activeRiftId && activeRiftId.startsWith('daily_rift')) { let obj = dailyObjectives.find(o => o.type === 'supernova_shards'); if (obj && !obj.completed) { obj.progress += 1; if (obj.progress >= obj.target) { obj.progress = obj.target; obj.completed = true; playerXP += obj.rewardXp; money += obj.rewardMoney; showNotification('DAILY OBJECTIVE COMPLETE!', false, '#10b981'); saveProgress(); updateDailyObjectivesUI(); } } } } }
             for (let s of stars) { if (!s.collected && Math.hypot(player.x - s.x, player.y - s.y) < player.radius + s.radius) { s.collected = true; runStars += 1; lifetimeStars += 1; lifetimeBoostsUsed += 1; player.isBoosting = true; player.boostTimer = 50; SFX.boost(); createExplosion(s.x, s.y, '#f59e0b', 30); showNotification("STAR BOOST!"); cameraShake = 20; } }
             for (let s of megaStars) { if (!s.collected && Math.hypot(player.x - s.x, player.y - s.y) < player.radius + s.radius) { s.collected = true; runStars += 5; lifetimeStars += 5; lifetimeBoostsUsed += 1; lifetimeMegaStars += 1; player.isBoosting = true; player.boostTimer = 120; SFX.megaBoost(); createExplosion(s.x, s.y, '#ef4444', 50); showNotification("MEGA BOOST!", false, '#ef4444'); cameraShake = 35; } }
             for (let w of wormholes) { if (w.active && Math.hypot(player.x - w.x, player.y - w.y) < player.radius + w.radius) { w.active = false; lifetimeBoostsUsed += 1; lifetimeWormholes += 1; player.y -= 3000; cameraY -= 3000; SFX.wormhole(); createExplosion(player.x, player.y, '#a855f7', 100); showNotification("WORMHOLE JUMP!", false, '#a855f7'); cameraShake = 50; } }
@@ -4896,6 +5178,17 @@ window.addEventListener('unhandledrejection', function(e) {
                 highestY = player.y; 
                 score = Math.floor(Math.abs(highestY - (height - 100)) / 10); 
                 scoreDisplay.innerText = score; 
+
+                if (activeRiftId && activeRiftId.startsWith('daily_rift')) {
+                    let obj = dailyObjectives.find(o => o.type === 'reach_altitude');
+                    if (obj && !obj.completed && score >= obj.target) {
+                        obj.progress = obj.target; obj.completed = true;
+                        playerXP += obj.rewardXp; money += obj.rewardMoney;
+                        showNotification('DAILY OBJECTIVE COMPLETE!', false, '#10b981'); saveProgress(); updateDailyObjectivesUI();
+                    } else if (obj && !obj.completed) {
+                        obj.progress = Math.max(obj.progress, score);
+                    }
+                }
                 
                 // System-wide ascension progress bar update
                 const maxAlt = activeRiftId !== null ? (RIFT_MAPS[activeRiftMapIndex].ceiling || 100000) : (LEVELS[activeLevelIndex].ceiling || 100000);
@@ -5083,6 +5376,30 @@ window.addEventListener('unhandledrejection', function(e) {
                     ctx.fillStyle = grad; ctx.shadowColor = '#a855f7'; ctx.shadowBlur = 25 + Math.sin(Date.now() / 80) * 15; 
                     ctx.beginPath(); ctx.arc(0, 0, w.radius, 0, Math.PI*2); ctx.fill(); ctx.restore();
                 }
+            }
+
+            if (currentCelestialEvent === 'supernova') {
+                ctx.fillStyle = 'rgba(245, 158, 11, 0.15)';
+                ctx.fillRect(0, cameraY, width, height);
+                ctx.globalCompositeOperation = 'lighter';
+                ctx.fillStyle = '#f59e0b';
+                ctx.beginPath();
+                ctx.arc(width/2, cameraY - 100, 300, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalCompositeOperation = 'source-over';
+            }
+
+            if (currentCelestialEvent === 'leviathan') {
+                ctx.fillStyle = 'rgba(20, 0, 40, 0.9)';
+                ctx.fillRect(0, leviathanY, width, height * 2);
+                ctx.fillStyle = '#9333ea';
+                ctx.globalAlpha = 0.5 + Math.sin(Date.now() / 200) * 0.3;
+                for (let i = 0; i < width; i += 40) {
+                    ctx.beginPath();
+                    ctx.arc(i + 20, leviathanY, 15 + Math.sin((Date.now() + i*10) / 150) * 10, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.globalAlpha = 1.0;
             }
 
             // Draw Player
