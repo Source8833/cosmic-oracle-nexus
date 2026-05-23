@@ -1,0 +1,23 @@
+{
+  "name": "oracle-nexus",
+  "version": "1.0.0",
+  "description": "The ethereal backend for Cosmic Ascension",
+  "main": "server.js",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.2.1",
+    "@capacitor/cli": "^6.2.1",
+    "@capacitor/core": "^6.2.1",
+    "capacitor-plugin-cdv-purchase": "^13.16.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.0.3",
+    "express": "^4.19.2"
+  }
+}
