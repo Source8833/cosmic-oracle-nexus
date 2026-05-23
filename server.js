@@ -112,6 +112,25 @@ app.get('/api/models', async (req, res) => {
     }
 });
 
+// Endpoint to update a task
+app.put('/api/tasks/:id', async (req, res) => {
+    try {
+        const taskId = req.params.id;
+        const updatedTaskData = req.body;
+        
+        // TODO: Replace with your actual task update logic/database call
+        // For example: await updateTaskInDb(taskId, updatedTaskData);
+        
+        res.json({ 
+            message: `Task ${taskId} updated successfully`, 
+            task: updatedTaskData 
+        });
+    } catch (error) {
+        console.error("Error updating task:", error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 app.listen(PORT, () => {
     console.log(`👁️ The Oracle Nexus is active on port ${PORT}`);
 });
