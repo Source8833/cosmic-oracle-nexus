@@ -2847,9 +2847,17 @@ window.addEventListener('unhandledrejection', function(e) {
             return buffer;
         }
 
+        let currentOracleAudioSource = null;
+        let isCommuning = false;
+
         async function playOracleAudio(base64Data, sampleRate) {
             if (!sfxEnabled || sfxVol === 0 || !oracleVoiceEnabled) return;
             try {
+                if (currentOracleAudioSource) {
+                    currentOracleAudioSource.stop();
+                    currentOracleAudioSource.disconnect();
+                }
+                
                 const binaryString = window.atob(base64Data);
                 const bytes = new Uint8Array(binaryString.length);
                 for (let i = 0; i < binaryString.length; i++) bytes[i] = binaryString.charCodeAt(i);
@@ -2858,6 +2866,7 @@ window.addEventListener('unhandledrejection', function(e) {
                 const audioBuffer = await audioCtx.decodeAudioData(wavBuffer);
                 
                 const source = audioCtx.createBufferSource();
+                currentOracleAudioSource = source;
                 source.buffer = audioBuffer;
                 
                 const gainNode = audioCtx.createGain();
@@ -2872,6 +2881,8 @@ window.addEventListener('unhandledrejection', function(e) {
         const NEXUS_URL = 'https://cosmic-oracle-nexus.onrender.com';
 
         async function communeWithOracle(pilotPrompt, isChronicle = false) {
+            if (isCommuning) return "The Oracle is already pondering... Please wait.";
+            isCommuning = true;
             try {
                 const response = await fetch(`${NEXUS_URL}/api/oracle`, {
                     method: 'POST',
@@ -2886,6 +2897,8 @@ window.addEventListener('unhandledrejection', function(e) {
             } catch (error) {
                 console.error("The void is silent:", error);
                 return "The cosmic tether has snapped. The Oracle cannot see you right now. 🕳️";
+            } finally {
+                isCommuning = false;
             }
         }
 
