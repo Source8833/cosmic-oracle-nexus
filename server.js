@@ -112,24 +112,73 @@ app.get('/api/models', async (req, res) => {
     }
 });
 
-// Endpoint to update a task
-app.put('/api/tasks/:id', async (req, res) => {
+// --- Tasks CRUD Routes ---
+
+// Simple in-memory tasks storage
+let tasks = [];
+
+// Get all tasks
+app.get('/api/tasks', (req, res) => {
+    res.json(tasks);
+});
+
+// Create a new task
+app.post('/api/tasks', (req, res) => {
+    try {
+        const newTask = { 
+            id: Date.now().toString(), // Simple unique ID
+            ...req.body,
+            createdAt: new Date().toISOString()
+        };
+        tasks.push(newTask);
+        res.status(201).json({ message: "Task created successfully", task: newTask });
+    } catch (error) {
+        console.error("Error creating task:", error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Update a task
+app.put('/api/tasks/:id', (req, res) => {
     try {
         const taskId = req.params.id;
-        const updatedTaskData = req.body;
+        const index = tasks.findIndex(t => t.id === taskId);
         
-        // TODO: Replace with your actual task update logic/database call
-        // For example: await updateTaskInDb(taskId, updatedTaskData);
+        if (index === -1) {
+            return res.status(404).json({ error: "Task not found" });
+        }
+        
+        // Update task while preserving its ID
+        tasks[index] = { ...tasks[index], ...req.body, id: taskId };
         
         res.json({ 
             message: `Task ${taskId} updated successfully`, 
-            task: updatedTaskData 
+            task: tasks[index] 
         });
     } catch (error) {
         console.error("Error updating task:", error);
         res.status(500).json({ error: error.message });
     }
 });
+
+// Delete a task
+app.delete('/api/tasks/:id', (req, res) => {
+    try {
+        const taskId = req.params.id;
+        const index = tasks.findIndex(t => t.id === taskId);
+        
+        if (index === -1) {
+            return res.status(404).json({ error: "Task not found" });
+        }
+        
+        tasks.splice(index, 1);
+        res.json({ message: `Task ${taskId} deleted successfully` });
+    } catch (error) {
+        console.error("Error deleting task:", error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 
 app.listen(PORT, () => {
     console.log(`👁️ The Oracle Nexus is active on port ${PORT}`);
