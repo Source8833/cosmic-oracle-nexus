@@ -4407,7 +4407,14 @@ window.addEventListener('unhandledrejection', function(e) {
                 const safeName = (entry.name || 'Anonymous').replace(/['"\\]/g, '\\$&');
                 const safeKey = (entry.name || 'Anonymous').replace(/[^a-zA-Z0-9_-]/g, '_');
                 
-                const avatar = entry.avatar || '<svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>';
+                let avatarHtml = entry.avatar || '<svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>';
+                if (entry.avatar && entry.avatar.length > 2) {
+                    const skinDef = typeof SKINS !== 'undefined' ? SKINS.find(s => s.id === entry.avatar) : null;
+                    if (skinDef) {
+                        const sType = skinDef.type === 'circle' ? 'rounded-full' : 'rounded-sm';
+                        avatarHtml = `<div class="w-4 h-4 ${sType} border border-white/20" style="background-color: ${skinDef.color || '#fff'}; box-shadow: 0 0 5px ${skinDef.color || '#fff'}"></div>`;
+                    }
+                }
                 const t = entry.tags || {};
                 let tagsHtml = '';
                 if (t.admin) tagsHtml += `<span class="bg-red-900/80 text-red-300 text-[8px] px-1 rounded uppercase mr-1 border border-red-500/50 shadow-lg">Admin</span>`;
@@ -4437,7 +4444,7 @@ window.addEventListener('unhandledrejection', function(e) {
                             <div class="flex items-center gap-2 truncate">
                                 <div class="w-1.5 h-1.5 rounded-full ${dotColor} animate-pulse shrink-0"></div>
                                 <span class="text-[9px] shrink-0">${statusIcon}</span>
-                                <span class="shrink-0 text-sm flex items-center">${avatar}</span>
+                                <span class="shrink-0 text-sm flex items-center">${avatarHtml}</span>
                                 <span class="truncate ${nameColor} text-xs flex items-center gap-1">${lvlBadge} ${tagsHtml} ${entry.name || 'Anonymous'}</span>
                             </div>
                             <div class="flex items-center">
@@ -4452,7 +4459,7 @@ window.addEventListener('unhandledrejection', function(e) {
                         <div class="flex justify-between items-center bg-white/5 p-2 rounded border border-white/5 cursor-pointer hover:border-purple-400 transition-colors" onclick="window.openPlayerCard('${safeKey}')">
                             <div class="flex items-center gap-2 truncate">
                                 <span class="${rankColor} w-4 shrink-0">${index + 1}.</span>
-                                <span class="shrink-0 text-sm flex items-center">${avatar}</span>
+                                <span class="shrink-0 text-sm flex items-center">${avatarHtml}</span>
                                 <span class="truncate text-gray-300 text-xs flex items-center gap-1">${lvlBadge} ${tagsHtml} ${entry.name || 'Anonymous'}</span>
                             </div>
                             <div class="flex items-center">
@@ -4735,6 +4742,7 @@ window.addEventListener('unhandledrejection', function(e) {
                         const action = e.target.getAttribute('data-action');
                         if (action === 'equipSkin') {
                             const id = e.target.getAttribute('data-id');
+                            if (typeof playerAvatar !== 'undefined') playerAvatar = id;
                             if (typeof activeSkinId !== 'undefined') activeSkinId = id;
                             saveProgress(); renderShop();
                             if (typeof updateAvatarDisplay === 'function') updateAvatarDisplay();
@@ -4751,6 +4759,7 @@ window.addEventListener('unhandledrejection', function(e) {
                                 money -= cost;
                                 const id = e.target.getAttribute('data-id');
                                 unlockedSkins.push(id);
+                                if (typeof playerAvatar !== 'undefined') playerAvatar = id;
                                 if (typeof activeSkinId !== 'undefined') activeSkinId = id;
                                 saveProgress(); renderShop(); SFX.coin();
                                 if (typeof updateAvatarDisplay === 'function') updateAvatarDisplay();
