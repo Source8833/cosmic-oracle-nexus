@@ -797,6 +797,44 @@
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>
     </button>
 
+    <!-- Cosmic Collapse Overlay -->
+    <div id="collapseOverlay" class="absolute inset-0 bg-black/90 backdrop-blur-md hidden items-center justify-center interactive z-[120]">
+        <div class="bg-fuchsia-950/40 p-6 rounded-xl border border-fuchsia-600 shadow-[0_0_50px_rgba(217,70,239,0.3)] max-w-sm w-full text-center flex flex-col items-center relative">
+            <h2 class="text-2xl font-bold text-fuchsia-400 tracking-[0.2em] uppercase mb-4">Cosmic Collapse</h2>
+            <p class="text-sm text-fuchsia-200/80 mb-6 leading-relaxed">Initiating this sequence will reset your Money, Level, Upgrades, and Highest Altitude.</p>
+            <p class="text-lg font-bold text-fuchsia-300 mb-6">You will gain <span id="collapsePendingDM">0</span> Dark Matter.</p>
+            
+            <div id="collapseStep1" class="w-full flex flex-col items-center">
+                <p class="text-xs text-fuchsia-200/60 mb-2 uppercase tracking-widest animate-pulse">Slide to Unlock</p>
+                <input type="range" id="collapseSlider" min="0" max="100" value="0" class="w-full h-12 bg-black rounded-lg appearance-none cursor-pointer border border-fuchsia-800 focus:outline-none mb-4" style="background: linear-gradient(to right, #d946ef 0%, #000 0%);">
+            </div>
+
+            <div id="collapseStep2" class="w-full hidden flex-col items-center">
+                <p class="text-xs text-red-400 mb-4 font-bold uppercase tracking-widest animate-pulse">WARNING: IRREVERSIBLE ACTION</p>
+                <button id="collapseConfirmBtn" class="w-full py-3 rounded-lg font-bold text-sm tracking-[0.1em] uppercase border border-red-600 bg-red-900/40 text-red-200 shadow-[0_0_20px_rgba(220,38,38,0.5)] transition-all hover:bg-red-800/60 mb-3">
+                    Yes, Collapse Everything
+                </button>
+                <button id="collapseCancelBtn" class="w-full py-2 rounded-lg font-bold text-xs tracking-wide uppercase text-fuchsia-300/60 hover:text-fuchsia-300 transition-colors">
+                    Abort
+                </button>
+            </div>
+
+            <div id="collapseStep3" class="w-full hidden flex-col items-center">
+                <p class="text-lg text-red-500 mb-6 font-black uppercase tracking-widest animate-bounce">Are you sure?</p>
+                <button id="collapseFinalBtn" class="w-full py-4 rounded-lg font-black text-lg tracking-[0.2em] uppercase bg-black text-white border-2 border-white shadow-[0_0_30px_rgba(255,255,255,0.8)] transition-all hover:bg-white hover:text-black mb-3">
+                    INTO THE BLACK HOLE
+                </button>
+                <button id="collapseFinalCancelBtn" class="w-full py-2 rounded-lg font-bold text-xs tracking-wide uppercase text-fuchsia-300/60 hover:text-fuchsia-300 transition-colors">
+                    I'm scared (Abort)
+                </button>
+            </div>
+            
+            <button id="collapseCloseBtn" class="absolute top-4 right-4 text-fuchsia-400/50 hover:text-fuchsia-400">
+                ✖
+            </button>
+        </div>
+    </div>
+
     <!-- Admin Password Overlay -->
     <div id="adminAuthOverlay" class="absolute inset-0 bg-black/90 backdrop-blur-md hidden items-center justify-center interactive z-[120]">
         <div class="glass-panel p-8 max-w-[20rem] w-full text-center flex flex-col relative overflow-hidden border border-red-500/30">
@@ -3650,24 +3688,62 @@ window.addEventListener('unhandledrejection', function(e) {
 
         document.getElementById('cosmicCollapseBtn')?.addEventListener('click', () => {
             let pendingDM = Math.floor(playerHighScore / 5000);
-            if (confirm(`Initiating Cosmic Collapse will reset your Money, Level, Upgrades, and Highest Altitude, but you will gain ${pendingDM} Dark Matter.\n\nDark Matter can be used for permanent research.\n\nProceed?`)) {
-                darkMatter += pendingDM;
-                prestigeCount++;
-                
-                money = 0; lifetimeMoney = 0; runMoney = 0;
-                playerLevel = 1; playerXP = 0; runXpGained = 0;
-                playerHighScore = 0; score = 0;
-                upgradeLevels = {};
-                
-                saveProgress();
-                updateXpUI();
-                renderLab();
-                
-                menuOverlay.classList.add('hidden');
-                document.getElementById('labOverlay').classList.remove('hidden');
-                document.getElementById('labOverlay').classList.add('flex');
+            document.getElementById('collapsePendingDM').innerText = pendingDM;
+            document.getElementById('collapseSlider').value = 0;
+            document.getElementById('collapseSlider').style.background = `linear-gradient(to right, #d946ef 0%, #000 0%)`;
+            document.getElementById('collapseStep1').classList.remove('hidden');
+            document.getElementById('collapseStep1').classList.add('flex');
+            document.getElementById('collapseStep2').classList.remove('flex');
+            document.getElementById('collapseStep2').classList.add('hidden');
+            document.getElementById('collapseStep3').classList.remove('flex');
+            document.getElementById('collapseStep3').classList.add('hidden');
+            document.getElementById('collapseOverlay').classList.remove('hidden');
+            document.getElementById('collapseOverlay').classList.add('flex');
+        });
+
+        document.getElementById('collapseSlider')?.addEventListener('input', (e) => {
+            const val = e.target.value;
+            e.target.style.background = `linear-gradient(to right, #d946ef ${val}%, #000 ${val}%)`;
+            if (val >= 100) {
+                document.getElementById('collapseStep1').classList.remove('flex');
+                document.getElementById('collapseStep1').classList.add('hidden');
+                document.getElementById('collapseStep2').classList.remove('hidden');
+                document.getElementById('collapseStep2').classList.add('flex');
             }
         });
+
+        document.getElementById('collapseConfirmBtn')?.addEventListener('click', () => {
+            document.getElementById('collapseStep2').classList.remove('flex');
+            document.getElementById('collapseStep2').classList.add('hidden');
+            document.getElementById('collapseStep3').classList.remove('hidden');
+            document.getElementById('collapseStep3').classList.add('flex');
+        });
+
+        document.getElementById('collapseFinalBtn')?.addEventListener('click', () => {
+            let pendingDM = Math.floor(playerHighScore / 5000);
+            darkMatter += pendingDM;
+            prestigeCount++;
+            money = 0; lifetimeMoney = 0; runMoney = 0;
+            playerLevel = 1; playerXP = 0; runXpGained = 0;
+            playerHighScore = 0; score = 0;
+            upgradeLevels = {};
+            saveProgress();
+            updateXpUI();
+            renderLab();
+            menuOverlay.classList.add('hidden');
+            document.getElementById('collapseOverlay').classList.add('hidden');
+            document.getElementById('collapseOverlay').classList.remove('flex');
+            document.getElementById('labOverlay').classList.remove('hidden');
+            document.getElementById('labOverlay').classList.add('flex');
+        });
+
+        const closeCollapse = () => {
+            document.getElementById('collapseOverlay').classList.add('hidden');
+            document.getElementById('collapseOverlay').classList.remove('flex');
+        };
+        document.getElementById('collapseCancelBtn')?.addEventListener('click', closeCollapse);
+        document.getElementById('collapseFinalCancelBtn')?.addEventListener('click', closeCollapse);
+        document.getElementById('collapseCloseBtn')?.addEventListener('click', closeCollapse);
 
         titleLaunchBtn.addEventListener('click', () => {
             requestSystemFullscreen(); initAudio(); gameState = 'HUB'; 
@@ -4863,7 +4939,7 @@ window.addEventListener('unhandledrejection', function(e) {
             dailyObjectives.forEach(obj => {
                 const pct = Math.min(100, (obj.progress / obj.target) * 100);
                 container.innerHTML += `
-                    <div class="bg-black/40 rounded p-2 border ${obj.completed ? 'border-emerald-500/50' : 'border-white/5'} relative overflow-hidden">
+                    <div class="bg-black/40 rounded p-2 mb-2 border ${obj.completed ? 'border-emerald-500/50' : 'border-white/5'} relative overflow-hidden">
                         <div class="absolute left-0 top-0 bottom-0 bg-emerald-500/20" style="width: ${pct}%"></div>
                         <div class="relative z-10 flex justify-between items-center">
                             <span class="${obj.completed ? 'text-emerald-300' : 'text-gray-300'}">${obj.desc}</span>
