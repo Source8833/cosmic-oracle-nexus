@@ -338,9 +338,9 @@
                             <label class="flex justify-between items-center bg-fuchsia-900/20 p-3 rounded-lg border border-fuchsia-500/30 cursor-pointer hover:bg-fuchsia-900/40 transition-colors">
                                 <div>
                                     <div class="text-sm font-bold text-fuchsia-100">Voice of Charon</div>
-                                    <div class="text-[9px] text-fuchsia-300/70 tracking-widest uppercase">Audible telepathy (TTS)</div>
+                                    <div class="text-[9px] text-fuchsia-300/70 tracking-widest uppercase">Audible telepathy (Disabled)</div>
                                 </div>
-                                <input type="checkbox" id="toggleOracleVoice" class="w-5 h-5 accent-fuchsia-500" checked>
+                                <input type="checkbox" id="toggleOracleVoice" class="w-5 h-5 accent-fuchsia-500" disabled>
                             </label>
                         </div>
                         
@@ -1719,12 +1719,12 @@ window.addEventListener('unhandledrejection', function(e) {
 
         // Oracle Settings
         let oracleEnabled = localStorage.getItem('cosmic_oracle_tips') !== 'false';
-        let oracleVoiceEnabled = localStorage.getItem('cosmic_oracle_voice') !== 'false';
+        let oracleVoiceEnabled = false; // Disabled in-game
         document.getElementById('toggleOracle').checked = oracleEnabled;
-        document.getElementById('toggleOracleVoice').checked = oracleVoiceEnabled;
+        if(document.getElementById('toggleOracleVoice')) document.getElementById('toggleOracleVoice').checked = oracleVoiceEnabled;
 
         document.getElementById('toggleOracle').addEventListener('change', (e) => { oracleEnabled = e.target.checked; localStorage.setItem('cosmic_oracle_tips', oracleEnabled); if(oracleEnabled && gameState === 'PLAYING') startOracleLoop(); else stopOracleLoop(); });
-        document.getElementById('toggleOracleVoice').addEventListener('change', (e) => { oracleVoiceEnabled = e.target.checked; localStorage.setItem('cosmic_oracle_voice', oracleVoiceEnabled); });
+        // Voice toggle disabled
 
         // Backend URL Settings
         let customBackendUrl = localStorage.getItem('cosmic_backend_url') || "http://localhost:3000";
@@ -4407,7 +4407,7 @@ window.addEventListener('unhandledrejection', function(e) {
                 const safeName = (entry.name || 'Anonymous').replace(/['"\\]/g, '\\$&');
                 const safeKey = (entry.name || 'Anonymous').replace(/[^a-zA-Z0-9_-]/g, '_');
                 
-                const avatar = entry.avatar || '👁️';
+                const avatar = entry.avatar || '<svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>';
                 const t = entry.tags || {};
                 let tagsHtml = '';
                 if (t.admin) tagsHtml += `<span class="bg-red-900/80 text-red-300 text-[8px] px-1 rounded uppercase mr-1 border border-red-500/50 shadow-lg">Admin</span>`;
@@ -4418,16 +4418,18 @@ window.addEventListener('unhandledrejection', function(e) {
                 let chatBtn = '';
                 if (safeKey !== myKey) {
                     if (isMsgDisabled) {
-                        chatBtn = `<button class="ml-2 bg-gray-900/40 text-gray-600 border border-gray-600/30 w-6 h-6 rounded flex items-center justify-center shrink-0 cursor-not-allowed text-[10px]" title="Communion Sealed">🔒</button>`;
+                        chatBtn = `<button class="ml-2 bg-gray-900/40 text-gray-600 border border-gray-600/30 w-6 h-6 rounded flex items-center justify-center shrink-0 cursor-not-allowed text-[10px]" title="Communion Sealed"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg></button>`;
                     } else {
-                        chatBtn = `<button onclick="event.stopPropagation(); window.openChat('${safeName}', '${safeKey}')" class="ml-2 bg-blue-900/40 hover:bg-blue-600 text-blue-300 border border-blue-500/30 w-6 h-6 rounded flex items-center justify-center transition-colors shrink-0 text-xs">💬</button>`;
+                        chatBtn = `<button onclick="event.stopPropagation(); window.openChat('${safeName}', '${safeKey}')" class="ml-2 bg-blue-900/40 hover:bg-blue-600 text-blue-300 border border-blue-500/30 w-6 h-6 rounded flex items-center justify-center transition-colors shrink-0 text-xs"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg></button>`;
                     }
                 }
+
+                const displayScore = (entry.score || entry.altitude) > 0 ? (entry.score || entry.altitude) : 'Hub';
 
                 if (isLive) {
                     const isPlaying = entry.status === 'playing';
                     const dotColor = isPlaying ? 'bg-green-400 shadow-[0_0_5px_#4ade80]' : 'bg-blue-400 shadow-[0_0_5px_#60a5fa]';
-                    const statusIcon = isPlaying ? '🚀' : '🛰️';
+                    const statusIcon = isPlaying ? '<svg class="w-3 h-3 text-green-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>' : '<svg class="w-3 h-3 text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>';
                     const bgColor = isPlaying ? 'bg-green-900/20 border-green-500/20 hover:border-green-400/80' : 'bg-blue-900/10 border-blue-500/20 hover:border-blue-400/80';
                     const nameColor = isPlaying ? 'text-green-100' : 'text-blue-200';
                     return `
@@ -4435,11 +4437,11 @@ window.addEventListener('unhandledrejection', function(e) {
                             <div class="flex items-center gap-2 truncate">
                                 <div class="w-1.5 h-1.5 rounded-full ${dotColor} animate-pulse shrink-0"></div>
                                 <span class="text-[9px] shrink-0">${statusIcon}</span>
-                                <span class="shrink-0 text-sm">${avatar}</span>
+                                <span class="shrink-0 text-sm flex items-center">${avatar}</span>
                                 <span class="truncate ${nameColor} text-xs flex items-center gap-1">${lvlBadge} ${tagsHtml} ${entry.name || 'Anonymous'}</span>
                             </div>
                             <div class="flex items-center">
-                                <span class="font-mono text-green-300 font-bold text-xs">${entry.score > 0 ? entry.score : 'Hub'}</span>
+                                <span class="font-mono text-green-300 font-bold text-xs">${displayScore}</span>
                                 ${chatBtn}
                             </div>
                         </div>
@@ -4450,11 +4452,11 @@ window.addEventListener('unhandledrejection', function(e) {
                         <div class="flex justify-between items-center bg-white/5 p-2 rounded border border-white/5 cursor-pointer hover:border-purple-400 transition-colors" onclick="window.openPlayerCard('${safeKey}')">
                             <div class="flex items-center gap-2 truncate">
                                 <span class="${rankColor} w-4 shrink-0">${index + 1}.</span>
-                                <span class="shrink-0 text-sm">${avatar}</span>
+                                <span class="shrink-0 text-sm flex items-center">${avatar}</span>
                                 <span class="truncate text-gray-300 text-xs flex items-center gap-1">${lvlBadge} ${tagsHtml} ${entry.name || 'Anonymous'}</span>
                             </div>
                             <div class="flex items-center">
-                                <span class="font-mono text-purple-300 font-bold text-xs">${entry.score}</span>
+                                <span class="font-mono text-green-300 font-bold text-xs">${displayScore}</span>
                                 ${chatBtn}
                             </div>
                         </div>
