@@ -3800,7 +3800,7 @@ window.addEventListener('unhandledrejection', function(e) {
             if (cosmicBtn && openLabBtn) {
                 if (pendingDM > 0 || prestigeCount > 0) {
                     cosmicBtn.style.display = 'flex';
-                    cosmicBtn.innerHTML = `COLLAPSE (+${pendingDM} DM)`;
+                    cosmicBtn.innerHTML = `<div class="flex flex-col items-center leading-tight"><span>COSMIC COLLAPSE</span><span class="text-[9px] text-fuchsia-300 normal-case tracking-normal opacity-90 mt-1">(Prestige for +${pendingDM} Dark Matter)</span></div>`;
                 } else {
                     cosmicBtn.style.display = 'none';
                 }
