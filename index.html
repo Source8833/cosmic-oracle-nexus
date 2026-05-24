@@ -61,7 +61,7 @@
         </div>
         
         <!-- Liquid Glass Spark Icon -->
-        <button onclick="openOracleChat()" class="w-14 h-14 rounded-full bg-white/5 backdrop-blur-md border border-fuchsia-400/50 flex items-center justify-center shadow-[0_0_30px_rgba(168,85,247,0.4)] animate-float cursor-pointer hover:bg-white/10 hover:scale-110 transition-all pointer-events-auto group">
+        <button onclick="toggleOracleChat()" class="w-14 h-14 rounded-full bg-white/5 backdrop-blur-md border border-fuchsia-400/50 flex items-center justify-center shadow-[0_0_30px_rgba(168,85,247,0.4)] animate-float cursor-pointer hover:bg-white/10 hover:scale-110 transition-all pointer-events-auto group">
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" class="text-fuchsia-300 drop-shadow-[0_0_15px_rgba(217,70,239,0.9)] group-hover:animate-pulse">
                 <path d="M15.5 2C15.5 2 15.5 8.5 22 10.5C15.5 12.5 15.5 19 15.5 19C15.5 19 15.5 12.5 9 10.5C15.5 8.5 15.5 2 15.5 2Z" fill="currentColor"/>
                 <path d="M6 12C6 12 6 15 9 16C6 17 6 20 6 20C6 20 6 17 3 16C6 15 6 12 6 12Z" fill="currentColor"/>
@@ -3154,6 +3154,16 @@ window.addEventListener('unhandledrejection', function(e) {
             oracleOverlay.classList.remove('hidden');
             oracleOverlay.classList.add('flex');
             oracleContent.innerHTML = `<span class="text-purple-500 text-center block w-full mt-4 tracking-widest text-xs uppercase">The Oracle awaits your voice...</span>`;
+        };
+
+        window.toggleOracleChat = () => {
+            initAudio();
+            if (oracleOverlay.classList.contains('hidden')) {
+                window.openOracleChat();
+            } else {
+                oracleOverlay.classList.add('hidden');
+                oracleOverlay.classList.remove('flex');
+            }
         };
 
         if(hubOracleBtn) {
