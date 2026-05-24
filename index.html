@@ -2859,7 +2859,7 @@ window.addEventListener('unhandledrejection', function(e) {
             bubble.classList.remove('opacity-0', 'translate-y-4');
             textEl.innerHTML = '';
             
-            if(oracleVoiceEnabled) fetchAndPlayOracleVoice(tip);
+            // No voice in game per user request
             
             let i = 0;
             function type() {
@@ -2880,9 +2880,13 @@ window.addEventListener('unhandledrejection', function(e) {
         function startOracleLoop() {
             clearInterval(oracleTipInterval);
             if (!oracleEnabled) return;
+            
+            // Trigger an initial tip shortly after starting
+            setTimeout(() => { triggerOracleTip(); }, 2000);
+            
             oracleTipInterval = setInterval(() => {
-                if (Math.random() < 0.4) triggerOracleTip();
-            }, 8000);
+                if (Math.random() < 0.6) triggerOracleTip();
+            }, 12000);
         }
 
         function stopOracleLoop() {
