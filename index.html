@@ -1608,8 +1608,8 @@ window.addEventListener('unhandledrejection', function(e) {
         function initAudio() {
             if (audioCtx.state === 'suspended') audioCtx.resume();
             if (musicEnabled && bgMusic.paused) {
-                bgMusic.volume = musicVol * 0.5;
-                bgMusic.play().catch(e => {});
+                bgMusic.volume = musicVol * 0.15;
+                if (gameState === 'PLAYING') bgMusic.play().catch(e => {});
             }
         }
 
@@ -1659,7 +1659,8 @@ window.addEventListener('unhandledrejection', function(e) {
             const sOn = document.getElementById('iconSfxOn'), sOff = document.getElementById('iconSfxOff');
             if (musicEnabled) { 
                 mOn.classList.remove('hidden'); mOff.classList.add('hidden'); 
-                bgMusic.volume = musicVol * 0.5; bgMusic.play().catch(e=>{}); 
+                bgMusic.volume = musicVol * 0.15; 
+                if (gameState === 'PLAYING') bgMusic.play().catch(e=>{}); 
             } else { 
                 mOn.classList.add('hidden'); mOff.classList.remove('hidden'); bgMusic.pause(); 
             }
@@ -1672,7 +1673,7 @@ window.addEventListener('unhandledrejection', function(e) {
         
         document.getElementById('musicVolSlider').addEventListener('input', (e) => {
             musicVol = parseFloat(e.target.value);
-            bgMusic.volume = musicVol * 0.5;
+            bgMusic.volume = musicVol * 0.15;
             localStorage.setItem('cosmic_music_vol', musicVol);
             if (musicVol > 0 && !musicEnabled) document.getElementById('btnMusic').click();
             if (musicVol === 0 && musicEnabled) document.getElementById('btnMusic').click();
@@ -1758,7 +1759,7 @@ window.addEventListener('unhandledrejection', function(e) {
                 trackOverride = e.currentTarget.getAttribute('data-src');
                 localStorage.setItem('cosmic_track_override', trackOverride);
                 bgMusic.src = trackOverride || LEVELS[activeLevelIndex].src;
-                if(musicEnabled) bgMusic.play().catch(e=>{});
+                if(musicEnabled && gameState === 'PLAYING') bgMusic.play().catch(e=>{});
                 updateTrackUI();
             });
         });
@@ -3726,7 +3727,7 @@ window.addEventListener('unhandledrejection', function(e) {
         
         document.getElementById('hubHomeBtn').addEventListener('click', () => { 
             initAudio(); 
-            gameState = 'TITLE'; 
+            gameState = 'TITLE'; if(bgMusic) bgMusic.pause();
             document.getElementById('chronicleBtn').classList.add('hidden');
             document.getElementById('chronicleText').classList.add('hidden');
             menuOverlay.classList.add('hidden'); 
@@ -4941,7 +4942,7 @@ window.addEventListener('unhandledrejection', function(e) {
                 disconnectRift();
                 document.getElementById('titleOverlay').classList.remove('hidden');
                 document.getElementById('titleOverlay').classList.add('flex');
-                gameState = 'TITLE';
+                gameState = 'TITLE'; if(bgMusic) bgMusic.pause();
                 document.getElementById('hudAltitude').style.display = 'none';
                 document.getElementById('hudMoney').style.display = 'none';
                 document.getElementById('desktopLeaderboard').style.display = 'none';
@@ -4999,6 +5000,7 @@ window.addEventListener('unhandledrejection', function(e) {
         function resetGame() {
             if (!activeRiftId) R = Math.random; // Ensure standard randomness outside of rifts
             initAudio(); saveProgress(); 
+            if (musicEnabled && bgMusic) { bgMusic.currentTime = 0; bgMusic.play().catch(e=>{}); }
             runMoney = 0; runStars = 0; runXpGained = 0;
             player.x = width / 2; player.y = height - 100; player.vx = 0; player.vy = 0;
             player.isBoosting = false; player.dashCharge = DASH_MAX_CHARGE; player.shield = upgradeLevels.shield || 0;
@@ -5511,6 +5513,7 @@ window.addEventListener('unhandledrejection', function(e) {
                 return;
             }
             gameState = 'GAMEOVER'; SFX.gameOver();
+            if (bgMusic) bgMusic.pause();
             lifetimeDeaths++;
             if(runStartTime > 0) { lifetimeTimePlayed += (Date.now() - runStartTime); runStartTime = 0; }
             if (score > playerHighScore) { playerHighScore = score; }
