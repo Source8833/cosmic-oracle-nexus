@@ -4735,7 +4735,6 @@ window.addEventListener('unhandledrejection', function(e) {
                         const action = e.target.getAttribute('data-action');
                         if (action === 'equipSkin') {
                             const id = e.target.getAttribute('data-id');
-                            if (typeof playerAvatar !== 'undefined') playerAvatar = id;
                             if (typeof activeSkinId !== 'undefined') activeSkinId = id;
                             saveProgress(); renderShop();
                             if (typeof updateAvatarDisplay === 'function') updateAvatarDisplay();
@@ -4752,7 +4751,6 @@ window.addEventListener('unhandledrejection', function(e) {
                                 money -= cost;
                                 const id = e.target.getAttribute('data-id');
                                 unlockedSkins.push(id);
-                                if (typeof playerAvatar !== 'undefined') playerAvatar = id;
                                 if (typeof activeSkinId !== 'undefined') activeSkinId = id;
                                 saveProgress(); renderShop(); SFX.coin();
                                 if (typeof updateAvatarDisplay === 'function') updateAvatarDisplay();
