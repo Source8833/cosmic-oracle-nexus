@@ -696,7 +696,7 @@
                     </div>
                 </div>
 
-                <div class="mt-4 p-4 rounded-xl border border-emerald-500/30 bg-emerald-900/20 text-left">
+                <div class="mt-4 mb-6 p-4 rounded-xl border border-emerald-500/30 bg-emerald-900/20 text-left">
                     <h3 class="text-emerald-400 font-bold uppercase tracking-widest text-[10px] mb-3 flex items-center gap-2">
                         <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
                         Daily Rift Objectives
@@ -4939,7 +4939,7 @@ window.addEventListener('unhandledrejection', function(e) {
             dailyObjectives.forEach(obj => {
                 const pct = Math.min(100, (obj.progress / obj.target) * 100);
                 container.innerHTML += `
-                    <div class="bg-black/40 rounded p-2 mb-2 border ${obj.completed ? 'border-emerald-500/50' : 'border-white/5'} relative overflow-hidden">
+                    <div class="bg-black/40 rounded p-2 border ${obj.completed ? 'border-emerald-500/50' : 'border-white/5'} relative overflow-hidden">
                         <div class="absolute left-0 top-0 bottom-0 bg-emerald-500/20" style="width: ${pct}%"></div>
                         <div class="relative z-10 flex justify-between items-center">
                             <span class="${obj.completed ? 'text-emerald-300' : 'text-gray-300'}">${obj.desc}</span>
