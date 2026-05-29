@@ -8,11 +8,11 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-// The key is fetched securely from Render's Environment Variables, or falls back to the hardcoded key
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "AIzaSyBq4GsqsWi-7eEKbpGCy1AlVVruMZK4dXY"; 
+// The key is fetched securely from Render's Environment Variables
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY; 
 
 if (!GEMINI_API_KEY) {
-    console.warn("⚠️ WARNING: No GEMINI_API_KEY detected.");
+    console.warn("⚠️ WARNING: No GEMINI_API_KEY detected. Please set it in your Render Environment Variables.");
 }
 
 app.post('/api/oracle', async (req, res) => {
