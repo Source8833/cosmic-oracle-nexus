@@ -113,6 +113,11 @@ app.get('/api/models', async (req, res) => {
     }
 });
 
+// Wake-On-Launch endpoint to prevent Render cold starts
+app.get('/api/wakeup', (req, res) => {
+    res.json({ status: "Awake", message: "The Cosmic Oracle's eyes are open." });
+});
+
 // --- Tasks CRUD Routes ---
 
 // Simple in-memory tasks storage
