@@ -13,12 +13,86 @@ const ALLOWED_ORIGINS = ['capacitor://localhost', 'https://localhost', 'http://l
 app.use(cors({ origin: (origin, cb) => cb(null, !origin || ALLOWED_ORIGINS.includes(origin)) }));
 app.use(express.json({ limit: '16kb' }));
 
-// The key is fetched securely from Render's Environment Variables
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY; 
+// --- Cloudflare Workers AI (2026-11-14: replaces Google Gemini) ------------------------------------
+// Render's Environment holds CF_ACCOUNT_ID and CF_API_TOKEN (a Workers AI token). CF_API_BASE is only
+// overridden by the tests, which point it at a fake API on localhost.
+const CF_API_BASE = process.env.CF_API_BASE || 'https://api.cloudflare.com/client/v4';
+const CF_ACCOUNT_ID = process.env.CF_ACCOUNT_ID;
+const CF_API_TOKEN = process.env.CF_API_TOKEN;
+const TEXT_MODEL = '@cf/qwen/qwen3.8-27b';
+const VOICE_MODEL = '@cf/deepgram/aura-2-en';
+const VOICE_SPEAKER = 'zeus';            // deep and grand, the closest to the old "Charon" voice
+const VOICE_SAMPLE_RATE = 24000;         // raw 16-bit PCM: the apps wrap it in a WAV header themselves
+const GUARD_MODEL = '@cf/meta/llama-guard-3-8b';
+const CF_TIMEOUT_MS = 25000;
 
-if (!GEMINI_API_KEY || GEMINI_API_KEY === 'YOUR_GEMINI_API_KEY_HERE') {
-    console.warn("⚠️ WARNING: No valid GEMINI_API_KEY detected. Placeholder or empty value present.");
+if (!CF_ACCOUNT_ID || !CF_API_TOKEN) {
+    console.warn('⚠️ WARNING: CF_ACCOUNT_ID / CF_API_TOKEN are not set. The Oracle cannot answer.');
 }
+
+const cfUrl = (p) => `${CF_API_BASE}/accounts/${CF_ACCOUNT_ID}/ai${p}`;
+async function cfPost(p, body) {
+    return fetch(cfUrl(p), {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${CF_API_TOKEN}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(CF_TIMEOUT_MS),
+    });
+}
+
+// Qwen may emit a <think> block before the answer; the player only ever sees the answer.
+const stripThinking = (t) => String(t || '').replace(/<think>[\s\S]*?<\/think>/gi, '').replace(/^[\s\S]*?<\/think>/i, '').trim();
+
+// No response_format JSON mode: on the live Qwen 3.8 it took 54 s against 7.5 s without it (2026-11-14).
+// Rifts ask for JSON in the system prompt and parseJsonObject() takes the object out of the reply.
+// reasoning_effort accepts low | medium | xhigh (default); low keeps replies to a few seconds.
+async function generateText(system, prompt, { maxTokens }) {
+    const r = await cfPost('/v1/chat/completions', {
+        model: TEXT_MODEL,
+        messages: [{ role: 'system', content: system }, { role: 'user', content: prompt }],
+        max_tokens: maxTokens,
+        temperature: 0.7,
+        reasoning_effort: 'low',
+    });
+    if (!r.ok) throw new Error(`Workers AI text ${r.status}: ${(await r.text()).slice(0, 300)}`);
+    const d = await r.json();
+    const msg = d.choices?.[0]?.message;
+    const text = stripThinking(msg?.content ?? d.result?.response ?? '');
+    if (!text) throw new Error('Workers AI text: empty reply');
+    return text;
+}
+
+// Store AI-content policies (App Store 1.2 / Google Play AI-generated content): every reply passes a
+// Llama Guard check before it reaches a player. If the check itself fails, the reply is not shown.
+async function replyIsSafe(prompt, reply) {
+    try {
+        const r = await cfPost(`/run/${GUARD_MODEL}`, { messages: [{ role: 'user', content: prompt }, { role: 'assistant', content: reply }] });
+        if (!r.ok) { console.warn(`[guard] ${r.status}`); return false; }
+        const out = (await r.json()).result?.response;
+        if (out && typeof out === 'object') return out.safe === true;
+        return /^\s*safe\b/i.test(String(out || ''));
+    } catch (e) {
+        console.warn('[guard] failed:', e.message);
+        return false;
+    }
+}
+
+async function speak(text) {
+    const r = await cfPost(`/run/${VOICE_MODEL}`, {
+        text, speaker: VOICE_SPEAKER, encoding: 'linear16', container: 'none', sample_rate: VOICE_SAMPLE_RATE,
+    });
+    if (!r.ok) throw new Error(`Workers AI voice ${r.status}`);
+    if ((r.headers.get('content-type') || '').includes('application/json')) {
+        const d = await r.json();
+        const audio = d.result?.audio || d.audio;
+        if (!audio) throw new Error('Workers AI voice: no audio');
+        return audio;
+    }
+    return Buffer.from(await r.arrayBuffer()).toString('base64');
+}
+
+const SAFE_ORACLE_LINE = 'The void stirs, but its words drift beyond the stars. Ask again, pilot. 🌌';
+const SAFE_RIFT_CONFIG = { name: 'Silent Expanse', description: 'A calm, quiet stretch of the void.', gravity: 0.53, jump_force: -32, bouncy_chance: 0.15, platform_color: '#00f3ff', bouncy_color: '#ff00e5' };
 
 // Small in-memory cache for preset questions, keyed on everything that changes the answer
 // (the prompt alone let a 'rift'-mode answer be cached for the mystic preset), capped in size.
@@ -30,13 +104,13 @@ function cacheSet(k, v) {
     presetResponseCache.set(k, v);
 }
 
-// Lightweight memory-based IP rate limiter to protect the server and API key under heavy load
+// Lightweight memory-based IP rate limiter to protect the server and the AI account under heavy load
 const ipRequestLog = new Map();
 const RATE_LIMIT_WINDOW_MS = 60000; // 1 minute
 const MAX_REQUESTS_PER_WINDOW = 15; // Max 15 custom chats per minute per IP
 
 // Every request counts, presets and rifts included (they used to skip the limiter, and each one was a
-// fresh paid Gemini call), plus a global ceiling. Stale addresses are pruned every minute.
+// fresh paid AI call), plus a global ceiling. Stale addresses are pruned every minute.
 const GLOBAL_MAX_PER_MINUTE = Number(process.env.ORACLE_GLOBAL_MAX_PER_MINUTE) || 300;
 let globalWindow = [];
 setInterval(() => {
@@ -62,23 +136,13 @@ function customRateLimiter(req, res, next) {
 
     if (timestamps.length > MAX_REQUESTS_PER_WINDOW) {
         console.warn(`[Rate Limit] Blocking IP ${ip} - too many inquiries (${timestamps.length}/${MAX_REQUESTS_PER_WINDOW})`);
-        return res.status(429).json({ 
-            error: "The Oracle is receiving too many thoughts from your coordinates. Telepathic link congested. Please wait 60 seconds." 
+        return res.status(429).json({
+            error: "The Oracle is receiving too many thoughts from your coordinates. Telepathic link congested. Please wait 60 seconds."
         });
     }
 
     next();
 }
-
-// 4.0.1: explicit Gemini safety filters on every request (store AI-generated
-// content policies): block harassment, hate, sexual and dangerous content from
-// LOW probability up. A blocked reply falls back to an in-character line.
-const SAFETY_SETTINGS = [
-    { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_LOW_AND_ABOVE' },
-    { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_LOW_AND_ABOVE' },
-    { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_LOW_AND_ABOVE' },
-    { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_LOW_AND_ABOVE' }
-];
 
 const PROMPT_MAX = 6000;   // the longest prompt the game builds (chronicles) is well under this
 function validOracleBody(b) {
@@ -92,26 +156,9 @@ app.get('/api/wakeup', (req, res) => {
     res.json({ status: 'Awake', message: "The Cosmic Oracle's eyes are open." });
 });
 
-app.post('/api/oracle', customRateLimiter, async (req, res) => {
-    try {
-        if (!validOracleBody(req.body)) return res.status(400).json({ error: 'Invalid request.' });
-        const { prompt, voiceEnabled, isChronicle, mode, isPreset } = req.body;
-        const ck = cacheKey(req.body);
-
-        // Cache hit check
-        if (isPreset && presetResponseCache.has(ck)) {
-            return res.json(presetResponseCache.get(ck));
-        }
-        
-        let sysInstruction = "You are the Primordial Cosmic Oracle of the void. Answer in 2 or 3 short sentences. Keep your thoughts brief but always complete your sentences fully. Speak in an esoteric, mystical, and primordial tone using emojis. Analyze the provided stats, remark on their achievements, and offer cryptic cosmic advice. CRITICAL: Output ONLY the spoken response. Do not include any word counts, thinking process, or meta-commentary.";
-        let maxTokens = 1000;
-        let generationConfig = {
-            temperature: 0.7,
-            maxOutputTokens: maxTokens
-        };
-
-        if (mode === 'rift') {
-            sysInstruction = `You are a game level designer API for the mobile game "Cosmic Ascension".
+const ORACLE_SYSTEM = "You are the Primordial Cosmic Oracle of the void. Answer in 2 or 3 short sentences. Keep your thoughts brief but always complete your sentences fully. Speak in an esoteric, mystical, and primordial tone using emojis. Analyze the provided stats, remark on their achievements, and offer cryptic cosmic advice. CRITICAL: Output ONLY the spoken response. Do not include any word counts, thinking process, or meta-commentary.";
+const CHRONICLE_SYSTEM = "You are the Cosmic Oracle recording history in the celestial ledger. Chronicle the pilot's latest journey. Detail their performance, reference their total lifetime achievements, and deliver a dramatic, esoteric, and mystical obituary of their run. Keep it to about 3 or 4 sentences. Use cosmic emojis. CRITICAL: Output ONLY the spoken response. Do not include any word counts, thinking process, or meta-commentary.";
+const RIFT_SYSTEM = `You are a game level designer API for the mobile game "Cosmic Ascension".
 Analyze the user's description of a dimension and output a configuration JSON object with physics and visual properties that match their description.
 You MUST respond with a valid JSON object matching the following structure:
 {
@@ -125,93 +172,54 @@ You MUST respond with a valid JSON object matching the following structure:
 }
 Ensure the gravity and jump_force are balanced so the player can actually jump high enough to reach the next platform. If gravity is high, jump_force should also be stronger (more negative, e.g. -40).
 Output ONLY the JSON object. Do not include markdown formatting or backticks.`;
-            
-            generationConfig = {
-                temperature: 0.7,
-                maxOutputTokens: 500,
-                responseMimeType: "application/json"
-            };
-        } else if (isChronicle) {
-            sysInstruction = "You are the Cosmic Oracle recording history in the celestial ledger. Chronicle the pilot's latest journey. Detail their performance, reference their total lifetime achievements, and deliver a dramatic, esoteric, and mystical obituary of their run. Keep it to about 3 or 4 sentences. Use cosmic emojis. CRITICAL: Output ONLY the spoken response. Do not include any word counts, thinking process, or meta-commentary.";
-            maxTokens = 2048;
-            generationConfig = {
-                temperature: 0.7,
-                maxOutputTokens: maxTokens
-            };
+
+// The first {...} block of a reply (a model sometimes wraps JSON in prose or fences).
+function parseJsonObject(text) {
+    const s = String(text || ''), i = s.indexOf('{'), j = s.lastIndexOf('}');
+    if (i < 0 || j <= i) throw new Error('no JSON object');
+    return JSON.parse(s.slice(i, j + 1));
+}
+
+app.post('/api/oracle', customRateLimiter, async (req, res) => {
+    try {
+        if (!validOracleBody(req.body)) return res.status(400).json({ error: 'Invalid request.' });
+        const { prompt, voiceEnabled, isChronicle, mode, isPreset } = req.body;
+        const ck = cacheKey(req.body);
+
+        // Cache hit check
+        if (isPreset && presetResponseCache.has(ck)) {
+            return res.json(presetResponseCache.get(ck));
         }
 
-        // 1. GENERATE TEXT
-        const textResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                systemInstruction: { 
-                    parts: [{ text: sysInstruction }] 
-                },
-                contents: [{ parts: [{ text: prompt }] }],
-                safetySettings: SAFETY_SETTINGS,
-                generationConfig: generationConfig
-            })
-        });
+        const isRift = mode === 'rift';
+        const system = isRift ? RIFT_SYSTEM : (isChronicle ? CHRONICLE_SYSTEM : ORACLE_SYSTEM);
+        const maxTokens = isRift ? 800 : (isChronicle ? 2048 : 1000);
 
-        if (!textResponse.ok) {
-            const errData = await textResponse.json();
-            throw new Error(`Gemini Text Error: ${textResponse.status} - ${JSON.stringify(errData)}`);
-        }
+        // 1. GENERATE TEXT, then the safety check
+        let wisdom = await generateText(system, prompt, { maxTokens });
+        const safe = await replyIsSafe(prompt, wisdom);
+        if (!safe) wisdom = isRift ? JSON.stringify(SAFE_RIFT_CONFIG) : SAFE_ORACLE_LINE;
 
-        const textData = await textResponse.json();
-        let wisdom = textData.candidates?.[0]?.content?.parts?.[0]?.text || "The void remains silent.";
-
-        // 2. GENERATE VOICE (IF REQUESTED AND NOT RIFT MODE)
+        // 2. GENERATE VOICE (IF REQUESTED, NOT RIFT MODE, AND THE REPLY PASSED THE CHECK)
         let base64Audio = null;
-        let sampleRate = 24000;
-
-        if (voiceEnabled && mode !== 'rift') {
-            const voiceResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-tts-preview:generateContent?key=${GEMINI_API_KEY}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    contents: [{ parts: [{ text: "Speak in a grand, ancient, majestic voice suitable for kids. Do not whisper. Read this: " + wisdom }] }],
-                    generationConfig: {
-                        responseModalities: ["AUDIO"],
-                        speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: "Charon" } } }
-                    }
-                })
-            });
-
-            if (voiceResponse.ok) {
-                const voiceRawText = await voiceResponse.text();
-                try {
-                    const voiceData = JSON.parse(voiceRawText);
-                    const inlineData = voiceData.candidates?.[0]?.content?.parts?.[0]?.inlineData;
-                    if (inlineData) {
-                        base64Audio = inlineData.data;
-                        const match = (inlineData.mimeType || "").match(/rate=(\d+)/);
-                        if (match) sampleRate = parseInt(match[1], 10);
-                    }
-                } catch (parseError) {
-                    console.warn(`Gemini Voice JSON Error: ${parseError.message} - Response text: ${voiceRawText.substring(0, 100)}`);
-                    wisdom += ` [Voice Generation Failed: Invalid JSON response from API]`;
-                }
-            } else {
-                const errorData = await voiceResponse.text();
-                console.warn(`Gemini Voice Error: ${voiceResponse.status} - ${errorData}`);
-                
-                if (voiceResponse.status === 429) {
-                    wisdom += ` [Oracle Voice is resting. Please wait 60 seconds before speaking to the Oracle again.]`;
-                } else {
-                    wisdom += ` [The Oracle's voice could not be summoned this time.]`;   // no upstream details to the client
-                }
+        let sampleRate = VOICE_SAMPLE_RATE;
+        if (voiceEnabled && !isRift && safe) {
+            try {
+                base64Audio = await speak(wisdom);
+            } catch (e) {
+                console.warn('[voice]', e.message);
+                wisdom += ` [The Oracle's voice could not be summoned this time.]`;   // no upstream details to the client
             }
         }
 
-        // 3. RETURN UNIFIED RESPONSE
+        // 3. RETURN UNIFIED RESPONSE (the shape every shipped app expects)
         let responseBody = { wisdom, base64Audio, sampleRate };
-        if (mode === 'rift') {
+        if (isRift) {
             try {
-                responseBody.config = JSON.parse(wisdom);
+                responseBody.config = parseJsonObject(wisdom);
+                responseBody.wisdom = JSON.stringify(responseBody.config);
             } catch (e) {
-                console.error("Failed to parse Gemini response as JSON:", wisdom);
+                console.error('Failed to parse the rift reply as JSON:', wisdom.slice(0, 300));
                 responseBody.error = "Failed to parse generative dimension config.";
             }
         }
@@ -224,160 +232,10 @@ Output ONLY the JSON object. Do not include markdown formatting or backticks.`;
     }
 });
 
-// /api/models and /api/tasks were removed in the 2026-11-14 audit: unauthenticated, unused by the game,
-// and /api/models spent quota on the owner's key on every call.
-
-
-// --- Scheduled Global Prophecy Cron Job (One Prompt, Infinite Players) ---
-const FB_URL = 'https://cosmic-ascension-2e3b7-default-rtdb.firebaseio.com';
-
-async function updateGlobalProphecy() {
-    console.log("[Cron] Starting global prophecy generation...");
-    try {
-        let topPlayerName = "NeonStriker";
-        let topScore = 12500;
-
-        // 1. Fetch leaderboard from Firebase
-        const lbResponse = await fetch(`${FB_URL}/leaderboard.json`);
-        if (lbResponse.ok) {
-            const lbData = await lbResponse.json();
-            if (lbData) {
-                const entries = Object.values(lbData).filter(e => e && e.score && (e.displayName || e.name));
-                if (entries.length > 0) {
-                    entries.sort((a, b) => b.score - a.score);
-                    topPlayerName = entries[0].displayName || entries[0].name || "NeonStriker";
-                    topScore = entries[0].score;
-                }
-            }
-        } else {
-            console.warn("[Cron] Failed to fetch leaderboard from Firebase. Using fallbacks.");
-        }
-
-        console.log(`[Cron] Top player identified: ${topPlayerName} (Score: ${topScore})`);
-
-        // 2. Query Gemini or generate local fallback
-        let prophecyText = "";
-
-        if (!GEMINI_API_KEY || GEMINI_API_KEY === 'YOUR_GEMINI_API_KEY_HERE') {
-            console.warn("[Cron] No GEMINI_API_KEY detected. Generating local fallback prophecy.");
-            const fallbacks = [
-                `👁️ The stars foretell that Pilot ${topPlayerName} will conquer the higher altitudes and transcend the void. Ascend further, for the Source awaits! 🌌`,
-                `🔮 A grand neon aura surrounds Pilot ${topPlayerName}, whose peak of ${topScore} meters has shaken the rifts. Trust in the thrusters! ✨`,
-                `🌀 The cosmic ledger whispers of Pilot ${topPlayerName}. Their record flight path is etched into the stellar tides, guiding all future pilots. 👁️`,
-                `✨ The Exosphere resonates with the name of Pilot ${topPlayerName}. They have reached ${topScore} meters, leaving a trail of stardust. 🌌`
-            ];
-            prophecyText = fallbacks[Math.floor(Math.random() * fallbacks.length)];
-        } else {
-            const sysInstruction = "You are the Primordial Cosmic Oracle of the void. You generate a grand, mysterious, and informative cosmic prophecy about the leaderboard's current reigning champion. Your prophecy MUST explicitly mention the pilot's name and their record altitude (in meters). Keep the tone mystical, esoteric, and legendary, using cosmic emojis (like 👁️, 🔮, 🌌, 🌀, ✨, 🚀). Keep the response between 2 and 3 sentences. Output ONLY the prophecy itself. Do not include word counts, thinking process, or any markdown formatting/backticks.";
-            const prompt = `Lead Pilot: '${topPlayerName}'\nRecord Altitude: ${topScore} meters\n\nWrite a prophecy containing this pilot's name and their record altitude, inspiring other pilots to either follow their path or try to defeat them.`;
-
-            const modelsToTry = [
-                'gemini-2.5-flash',
-                'gemini-flash-latest',
-                'gemini-2.5-flash-lite'
-            ];
-
-            let success = false;
-            for (const model of modelsToTry) {
-                try {
-                    console.log(`[Cron] Attempting prophecy generation with model: ${model}`);
-                    const textResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            systemInstruction: { 
-                                parts: [{ text: sysInstruction }] 
-                            },
-                            contents: [{ parts: [{ text: prompt }] }],
-                            safetySettings: SAFETY_SETTINGS,
-                            generationConfig: {
-                                temperature: 0.8,
-                                maxOutputTokens: 1000,
-                                thinkingConfig: {
-                                    thinkingBudget: 0
-                                }
-                            }
-                        })
-                    });
-
-                    if (textResponse.ok) {
-                        const textData = await textResponse.json();
-                        prophecyText = textData.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "";
-                        if (prophecyText) {
-                            console.log(`[Cron] Prophecy successfully generated using model ${model}`);
-                            success = true;
-                            break;
-                        }
-                    } else {
-                        const errData = await textResponse.text();
-                        console.warn(`[Cron] Model ${model} failed: ${textResponse.status} - ${errData}`);
-                    }
-                } catch (e) {
-                    console.warn(`[Cron] Exception trying model ${model}:`, e);
-                }
-            }
-
-            if (!success) {
-                console.warn("[Cron] All Gemini models failed or returned empty. Falling back to local offline prophecy generator.");
-                const fallbacks = [
-                    `👁️ The stars foretell that Pilot ${topPlayerName} will conquer the higher altitudes and transcend the void. Ascend further, for the Source awaits! 🌌`,
-                    `🔮 A grand neon aura surrounds Pilot ${topPlayerName}, whose peak of ${topScore} meters has shaken the rifts. Trust in the thrusters! ✨`,
-                    `🔮 The cosmic ledger whispers of Pilot ${topPlayerName}. Their record flight path of ${topScore} meters is etched into the stellar tides. 🌀`,
-                    `✨ The Exosphere resonates with the name of Pilot ${topPlayerName}. They have reached ${topScore} meters, leaving a trail of stardust. 🌌`
-                ];
-                prophecyText = fallbacks[Math.floor(Math.random() * fallbacks.length)];
-            }
-        }
-
-        if (!prophecyText) {
-            throw new Error("Oracle returned empty text for prophecy.");
-        }
-
-        console.log(`[Cron] Generated Prophecy: "${prophecyText}"`);
-
-        // 3. Write prophecy back to Firebase
-        const payload = {
-            text: prophecyText,
-            updatedAt: Date.now(),
-            topPlayer: topPlayerName,
-            topScore: topScore
-        };
-
-        const fbWriteResponse = await fetch(`${FB_URL}/global_prophecy.json`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-
-        if (fbWriteResponse.ok) {
-            console.log("[Cron] Successfully updated global prophecy in Firebase.");
-        } else {
-            console.error(`[Cron] Failed to write prophecy to Firebase: ${fbWriteResponse.status}`);
-        }
-
-    } catch (err) {
-        console.error("[Cron] Prophecy generation failed:", err);
-    }
-}
-
-// Endpoint to manually trigger prophecy update
-app.post('/api/cron/prophecy', async (req, res) => {
-    // only with the CRON_SECRET header (it triggered paid AI calls for anyone before)
-    if (!process.env.CRON_SECRET || req.get('x-cron-secret') !== process.env.CRON_SECRET) return res.status(404).end();
-    try {
-        await updateGlobalProphecy();
-        res.json({ message: "Prophecy update triggered successfully." });
-    } catch (error) {
-        console.error('[cron] prophecy failed:', error);
-        res.status(500).json({ error: 'failed' });
-    }
-});
+// /api/models and /api/tasks were removed in the 2026-11-14 audit: unauthenticated and unused by the game.
+// The global prophecy cron was removed the same day: the game no longer shows it, and it sent the top
+// pilots' names to the AI (the privacy policy promises names are never sent).
 
 app.listen(PORT, () => {
     console.log(`👁️ The Oracle Nexus is active on port ${PORT}`);
-    
-    // 4.0.1: the AI prophecy no longer runs on a timer. The game does not show
-    // its text any more, and it sent the top pilots' names to the AI.
-    // (POST /api/cron/prophecy still triggers it manually if ever needed.)
 });
-
