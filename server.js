@@ -1,6 +1,10 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
+import {
+    parseOraclePrompt, injectionSuspect, lockReply, buildOracleMessages, buildGateMessages, gateSaysOn,
+    buildRiftMessages, parseJsonObject, clampRiftConfig, cleanQuestion, OFF_TOPIC_LINE, SAFE_ORACLE_LINE, SAFE_RIFT_CONFIG,
+} from './oracle-core.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -28,7 +32,9 @@ function cleanToken(raw) {
     return /^[A-Za-z0-9._~+\/=-]+$/.test(t) ? t : '';
 }
 const CF_API_TOKEN = cleanToken(process.env.CF_API_TOKEN);
-const TEXT_MODEL = '@cf/qwen/qwen3.8-27b';
+// 2026-11-15: IBM Granite 4.0 Micro (owner: "Granite on my Cloudflare account"): no reasoning step, so it answers
+// in about a second, at $0.017/M input tokens. The Oracle is game-locked by oracle-core.js, not by the model.
+const TEXT_MODEL = '@cf/ibm-granite/granite-4.0-h-micro';
 const VOICE_MODEL = '@cf/deepgram/aura-2-en';
 const VOICE_SPEAKER = 'zeus';            // deep and grand, the closest to the old "Charon" voice
 const VOICE_SAMPLE_RATE = 24000;         // raw 16-bit PCM: the apps wrap it in a WAV header themselves
@@ -49,24 +55,18 @@ async function cfPost(p, body) {
     });
 }
 
-// Qwen may emit a <think> block before the answer; the player only ever sees the answer.
-const stripThinking = (t) => String(t || '').replace(/<think>[\s\S]*?<\/think>/gi, '').replace(/^[\s\S]*?<\/think>/i, '').trim();
-
-// No response_format JSON mode: on the live Qwen 3.8 it took 54 s against 7.5 s without it (2026-11-14).
-// Rifts ask for JSON in the system prompt and parseJsonObject() takes the object out of the reply.
-// reasoning_effort accepts low | medium | xhigh (default); low keeps replies to a few seconds.
-async function generateText(system, prompt, { maxTokens }) {
+// No response_format JSON mode (it was slow on Workers AI): rifts ask for JSON in the system prompt and
+// parseJsonObject() takes the object out of the reply.
+async function generateText({ system, user }, { maxTokens, temperature = 0.7 }) {
     const r = await cfPost('/v1/chat/completions', {
         model: TEXT_MODEL,
-        messages: [{ role: 'system', content: system }, { role: 'user', content: prompt }],
+        messages: [{ role: 'system', content: system }, { role: 'user', content: user }],
         max_tokens: maxTokens,
-        temperature: 0.7,
-        reasoning_effort: 'low',
+        temperature,
     });
     if (!r.ok) throw new Error(`Workers AI text ${r.status}: ${(await r.text()).slice(0, 300)}`);
     const d = await r.json();
-    const msg = d.choices?.[0]?.message;
-    const text = stripThinking(msg?.content ?? d.result?.response ?? '');
+    const text = String(d.choices?.[0]?.message?.content ?? d.result?.response ?? '').trim();
     if (!text) throw new Error('Workers AI text: empty reply');
     return text;
 }
@@ -99,9 +99,6 @@ async function speak(text) {
     }
     return Buffer.from(await r.arrayBuffer()).toString('base64');
 }
-
-const SAFE_ORACLE_LINE = 'The void stirs, but its words drift beyond the stars. Ask again, pilot. 🌌';
-const SAFE_RIFT_CONFIG = { name: 'Silent Expanse', description: 'A calm, quiet stretch of the void.', gravity: 0.53, jump_force: -32, bouncy_chance: 0.15, platform_color: '#00f3ff', bouncy_color: '#ff00e5' };
 
 // Small in-memory cache for preset questions, keyed on everything that changes the answer
 // (the prompt alone let a 'rift'-mode answer be cached for the mystic preset), capped in size.
@@ -165,54 +162,63 @@ app.get('/api/wakeup', (req, res) => {
     res.json({ status: 'Awake', message: "The Cosmic Oracle's eyes are open." });
 });
 
-const ORACLE_SYSTEM = "You are the Primordial Cosmic Oracle of the void. Answer in 2 or 3 short sentences. Keep your thoughts brief but always complete your sentences fully. Speak in an esoteric, mystical, and primordial tone using emojis. Analyze the provided stats, remark on their achievements, and offer cryptic cosmic advice. CRITICAL: Output ONLY the spoken response. Do not include any word counts, thinking process, or meta-commentary.";
-const CHRONICLE_SYSTEM = "You are the Cosmic Oracle recording history in the celestial ledger. Chronicle the pilot's latest journey. Detail their performance, reference their total lifetime achievements, and deliver a dramatic, esoteric, and mystical obituary of their run. Keep it to about 3 or 4 sentences. Use cosmic emojis. CRITICAL: Output ONLY the spoken response. Do not include any word counts, thinking process, or meta-commentary.";
-const RIFT_SYSTEM = `You are a game level designer API for the mobile game "Cosmic Ascension".
-Analyze the user's description of a dimension and output a configuration JSON object with physics and visual properties that match their description.
-You MUST respond with a valid JSON object matching the following structure:
-{
-  "name": "Name of the dimension (string, 1-3 words)",
-  "description": "A short, cool one-sentence description (under 15 words)",
-  "gravity": float (ranges from 0.15 for very low gravity to 1.5 for extremely heavy gravity, default is 0.53),
-  "jump_force": integer (ranges from -22 for weak jump to -45 for extremely strong jump, default is -32),
-  "bouncy_chance": float (ranges from 0.05 for very few bouncy platforms to 0.9 for almost all bouncy platforms, default is 0.15),
-  "platform_color": "Hex color code for regular platforms (e.g. #00f3ff)",
-  "bouncy_color": "Hex color code for bouncy platforms (e.g. #ff00e5)"
-}
-Ensure the gravity and jump_force are balanced so the player can actually jump high enough to reach the next platform. If gravity is high, jump_force should also be stronger (more negative, e.g. -40).
-Output ONLY the JSON object. Do not include markdown formatting or backticks.`;
+// What the safety check reads for a game-built prompt (it never sees the knowledge pack).
+const GUARD_PROMPT = { hub: 'Greet me at the hub.', flight: 'Guide me mid-flight.', aura: 'Read my aura.', chronicle: 'Chronicle my last run.' };
 
-// The first {...} block of a reply (a model sometimes wraps JSON in prose or fences).
-function parseJsonObject(text) {
-    const s = String(text || ''), i = s.indexOf('{'), j = s.lastIndexOf('}');
-    if (i < 0 || j <= i) throw new Error('no JSON object');
-    return JSON.parse(s.slice(i, j + 1));
+// A generative rift: the description is data, the reply is clamped to the game's ranges and carries at most a
+// 3-word name and a 15-word sentence. A reply that is not JSON keeps the old answer ({error}), so the app falls
+// back to its own keyword compiler.
+async function riftReply(prompt) {
+    const desc = cleanQuestion(prompt);
+    if (injectionSuspect(desc)) return { config: { ...SAFE_RIFT_CONFIG } };
+    const text = await generateText(buildRiftMessages(desc), { maxTokens: 220, temperature: 0.6 });
+    let config;
+    try { config = clampRiftConfig(parseJsonObject(text)); } catch (e) {
+        console.warn('[rift] reply was not JSON');
+        return { error: 'Failed to parse generative dimension config.' };
+    }
+    if (!(await replyIsSafe(desc, `${config.name}. ${config.description}`))) config = { ...SAFE_RIFT_CONFIG };
+    return { config };
+}
+
+// An Oracle answer. Game-built prompts are rebuilt in the server's words; the pilot's own words are capped,
+// fenced off, checked for injection (no AI call at all) and topic-checked in parallel with the answer.
+// Returns { wisdom, speak } - fixed lines (refusals, replacements) are never voiced.
+async function oracleReply(prompt) {
+    const parsed = parseOraclePrompt(prompt);
+    const gated = parsed.kind === 'ask' || parsed.kind === 'free';
+    if (gated && (injectionSuspect(parsed.question) || !parsed.question)) return { wisdom: OFF_TOPIC_LINE, speak: false };
+    const maxTokens = parsed.kind === 'chronicle' ? 200 : 160;
+    const [gate, answer] = await Promise.allSettled([
+        gated ? generateText(buildGateMessages(parsed.question), { maxTokens: 3, temperature: 0 }) : Promise.resolve('ON'),
+        generateText(buildOracleMessages(parsed), { maxTokens, temperature: 0.5 }),
+    ]);
+    if (gate.status === 'rejected') throw gate.reason;
+    if (!gateSaysOn(gate.value)) return { wisdom: OFF_TOPIC_LINE, speak: false };
+    if (answer.status === 'rejected') throw answer.reason;
+    const locked = lockReply(answer.value, { maxSentences: 3 });
+    if (!locked) return { wisdom: SAFE_ORACLE_LINE, speak: false };
+    if (locked === OFF_TOPIC_LINE) return { wisdom: OFF_TOPIC_LINE, speak: false };
+    if (!(await replyIsSafe(parsed.question || GUARD_PROMPT[parsed.kind] || 'Speak to me.', locked))) return { wisdom: SAFE_ORACLE_LINE, speak: false };
+    return { wisdom: locked, speak: true };
 }
 
 app.post('/api/oracle', customRateLimiter, async (req, res) => {
     try {
         if (!validOracleBody(req.body)) return res.status(400).json({ error: 'Invalid request.' });
-        const { prompt, voiceEnabled, isChronicle, mode, isPreset } = req.body;
+        const { prompt, voiceEnabled, mode, isPreset } = req.body;
         const ck = cacheKey(req.body);
+        if (isPreset && presetResponseCache.has(ck)) return res.json(presetResponseCache.get(ck));
 
-        // Cache hit check
-        if (isPreset && presetResponseCache.has(ck)) {
-            return res.json(presetResponseCache.get(ck));
+        if (mode === 'rift') {
+            const r = await riftReply(prompt);
+            if (r.error) return res.json({ wisdom: '', base64Audio: null, sampleRate: VOICE_SAMPLE_RATE, error: r.error });
+            return res.json({ wisdom: JSON.stringify(r.config), base64Audio: null, sampleRate: VOICE_SAMPLE_RATE, config: r.config });
         }
 
-        const isRift = mode === 'rift';
-        const system = isRift ? RIFT_SYSTEM : (isChronicle ? CHRONICLE_SYSTEM : ORACLE_SYSTEM);
-        const maxTokens = isRift ? 800 : (isChronicle ? 2048 : 1000);
-
-        // 1. GENERATE TEXT, then the safety check
-        let wisdom = await generateText(system, prompt, { maxTokens });
-        const safe = await replyIsSafe(prompt, wisdom);
-        if (!safe) wisdom = isRift ? JSON.stringify(SAFE_RIFT_CONFIG) : SAFE_ORACLE_LINE;
-
-        // 2. GENERATE VOICE (IF REQUESTED, NOT RIFT MODE, AND THE REPLY PASSED THE CHECK)
+        let { wisdom, speak: speakIt } = await oracleReply(prompt);
         let base64Audio = null;
-        let sampleRate = VOICE_SAMPLE_RATE;
-        if (voiceEnabled && !isRift && safe) {
+        if (voiceEnabled && speakIt) {
             try {
                 base64Audio = await speak(wisdom);
             } catch (e) {
@@ -220,23 +226,11 @@ app.post('/api/oracle', customRateLimiter, async (req, res) => {
                 wisdom += ` [The Oracle's voice could not be summoned this time.]`;   // no upstream details to the client
             }
         }
-
-        // 3. RETURN UNIFIED RESPONSE (the shape every shipped app expects)
-        let responseBody = { wisdom, base64Audio, sampleRate };
-        if (isRift) {
-            try {
-                responseBody.config = parseJsonObject(wisdom);
-                responseBody.wisdom = JSON.stringify(responseBody.config);
-            } catch (e) {
-                console.error('Failed to parse the rift reply as JSON:', wisdom.slice(0, 300));
-                responseBody.error = "Failed to parse generative dimension config.";
-            }
-        }
-        if (isPreset && responseBody && !responseBody.error) cacheSet(ck, responseBody);
+        const responseBody = { wisdom, base64Audio, sampleRate: VOICE_SAMPLE_RATE };   // the shape every shipped app expects
+        if (isPreset) cacheSet(ck, responseBody);
         res.json(responseBody);
-
     } catch (error) {
-        console.error("Oracle Manifestation Error:", error);
+        console.error('Oracle Manifestation Error:', error.message);
         res.status(500).json({ error: 'The Oracle could not answer. Try again in a moment.' });   // details stay in the log
     }
 });
