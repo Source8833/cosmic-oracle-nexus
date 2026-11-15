@@ -18,7 +18,16 @@ app.use(express.json({ limit: '16kb' }));
 // overridden by the tests, which point it at a fake API on localhost.
 const CF_API_BASE = process.env.CF_API_BASE || 'https://api.cloudflare.com/client/v4';
 const CF_ACCOUNT_ID = process.env.CF_ACCOUNT_ID;
-const CF_API_TOKEN = process.env.CF_API_TOKEN;
+// Cloudflare's token page also offers a "test your token" curl command; a paste of that whole command (or
+// stray quotes/whitespace) still yields the bare token. Anything that is not a token becomes '' so the
+// value can never reach a header (Node puts an invalid header value into the error message = the log).
+function cleanToken(raw) {
+    const s = String(raw || '').trim();
+    const m = s.match(/Bearer\s+([A-Za-z0-9._~+\/=-]+)/);
+    const t = m ? m[1] : s.replace(/^["']+|["']+$/g, '');
+    return /^[A-Za-z0-9._~+\/=-]+$/.test(t) ? t : '';
+}
+const CF_API_TOKEN = cleanToken(process.env.CF_API_TOKEN);
 const TEXT_MODEL = '@cf/qwen/qwen3.8-27b';
 const VOICE_MODEL = '@cf/deepgram/aura-2-en';
 const VOICE_SPEAKER = 'zeus';            // deep and grand, the closest to the old "Charon" voice
